@@ -22,7 +22,7 @@ bldpur='\e[1;35m' # Purple
 bldcyn='\e[1;36m' # Cyan
 bldwht='\e[1;37m' # White
 
-diclist=~/ndiclist.list
+diclist=~/tridixlist.list
 mode='En'	#en,ja,la.
 termgeom=( "$(tput lines)" "$(tput cols)" )
 src=''
@@ -269,8 +269,8 @@ while read -e word; do
 			last='' # clean last_word & metas.
 			meta=''
 
-			src=/tmp/.dicsrc_$RANDOM
-			tmp=/tmp/.dictmp_$RANDOM
+			src=/tmp/.tridixsrc_$RANDOM
+			tmp=/tmp/.tridixtmp_$RANDOM
 
 			if [ $mode == 'En' ]; then
 				endic "$word"
