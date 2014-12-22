@@ -23,7 +23,6 @@ bldpur='\e[1;35m' # Purple
 bldcyn='\e[1;36m' # Cyan
 bldwht='\e[1;37m' # White
 
-wowowo
 diclist=~/tridixlist.list
 mode='En'	#en,ja,la.
 termgeom=( "$(tput lines)" "$(tput cols)" )
