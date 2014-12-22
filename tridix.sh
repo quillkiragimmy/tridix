@@ -7,6 +7,7 @@ txtblk='\e[0;30m' # Black - Regular
 txtred='\e[0;31m' # Red
 txtgrn='\e[0;32m' # Green
 txtylw='\e[0;33m' # Yellow
+txtblu='\e[0;34m' # Blueused by j/ldic.
 txtblu='\e[0;34m' # Blue
 txtpur='\e[0;35m' # Purple
 txtcyn='\e[0;36m' # Cyan
@@ -29,7 +30,7 @@ src=''
 tmp=''
 last=''
 meta='' # related stuff.
-bars=''	# used by j/ldic.
+bars=''       # used by j/ldic.
 
 trap "rm -f $tmp $src && exit 0" SIGHUP SIGINT SIGTERM 
 
