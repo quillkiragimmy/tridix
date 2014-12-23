@@ -1,5 +1,6 @@
 #!/usr/bin/bash
 
+# what will be different in $(git fetch?)
 ##############################
 # text colors.
 ##############################
