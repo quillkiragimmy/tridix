@@ -63,7 +63,9 @@ endic(){
 	curl -sL http://dictionary.reference.com/browse/$(echo "$@"| tr ' ' '+')?s=t > $SOURCE
 
 	if [[ $(fgrep 'Did you mean' $SOURCE) ]]; then
-		xmllint --html --htmlout --xpath '//section[@class="more-suggestions"]' $SOURCE 2>/dev/null| w3m -T text/html| cat
+		xmllint --html --htmlout --xpath '//section[@class="more-suggestions"]' $SOURCE 2>/dev/null\
+			| perl -pe 's/<.*?>//g'\
+			| grep -v '^$'
 	else
 			# pronounce.
 		pron="$(xmllint --html --htmlout --xpath '//*[@id="source-luna"]/div[1]/section/header/div[2]/div/span/span[2]' $SOURCE 2>/dev/null\
