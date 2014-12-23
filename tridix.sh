@@ -1,6 +1,5 @@
 #!/usr/bin/bash
 
-#wow
 ##############################
 # text colors.
 ##############################
@@ -313,4 +312,3 @@ while read -e word; do
 done
 
 
-#fof
