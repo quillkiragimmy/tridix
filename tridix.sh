@@ -36,8 +36,14 @@ TEMP=''
 LAST=''
 META='' # related stuff.
 BARS=''       # used by j/ldic.
+CLEANUP=()
 
-trap "rm -f $TEMP $SOURCE && exit 0" SIGHUP SIGINT SIGTERM 
+cleanup(){
+	for target in ${CLEANUP[*]}; do
+		rm -f $target
+	done
+}
+trap cleanup 0
 
 ##############################
 # dictionary functions.
@@ -284,6 +290,7 @@ while read -e word; do
 
 			SOURCE=/tmp/.tridixsrc_$RANDOM
 			TEMP=/tmp/.tridixtmp_$RANDOM
+			CLEANUP=( "$SOURCE" "$TEMP" )
 
 			if [ $MODE == 'En' ]; then
 				endic "$word"
