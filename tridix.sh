@@ -81,8 +81,12 @@ endic(){
 			| sed 's/Derived Forms/[Derived]/g')"
 
 			# meaning.
+# the sed.*999 line: bug fix for some ^Med sources.
+# the tr.*\r line: bug fix for some indented sources.
 		xmllint --html --htmlout --xpath '//section[@class="def-pbk"]' $SOURCE 2>/dev/null\
 			| perl -pe 's/<.*?>//g'\
+			| sed 's/^ \{1,999\}//g'\
+			| tr -d '\r'\
 			| grep -v '^$'\
 			| sed ':a;N;$!ba;s/\([0-9]\{1,2\}\.\)\n/\1) /g' >> $TEMP
 
