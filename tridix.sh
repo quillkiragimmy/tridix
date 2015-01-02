@@ -88,7 +88,7 @@ endic(){
 			| sed 's/^ \{1,999\}//g'\
 			| tr -d '\r'\
 			| grep -v '^$'\
-			| sed ':a;N;$!ba;s/\([0-9]\{1,2\}\.\)\n/\1) /g' >> $TEMP
+			| sed ':a;N;$!ba;s/\([0-9]\{1,3\}\.\)\n/\1) /g' >> $TEMP
 
 		echo "$rel" >> $TEMP
 
@@ -99,7 +99,7 @@ endic(){
 		quote="$(cat $TEMP\
 			| grep '\.).*:'\
 			| cut -d':' -f2\
-			| head -n3\
+			| head -n5\
 			| grep "$@"\
 			| sed 's/$/<br>/'\
 			| tr -d '\n')" 
