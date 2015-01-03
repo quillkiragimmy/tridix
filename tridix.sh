@@ -29,14 +29,24 @@ bldwht='\e[1;37m' # White
 ##############################
 # gloable vars.
 ##############################
-DICLIST=~/tridixlist.list
+DICLIST=$HOME/tridixlist.list
+DICHIST=$HOME/.tridixhistory
 MODE='En'	#en,ja,la.
 TERMGEOM=( "$(tput lines)" "$(tput cols)" )
 SOURCE=''
 TEMP=''
 LAST=''
-META='' # related stuff.
 BARS=''       # used by j/ldic.
+
+PRONOUNCIATION=''
+RELATIVE=''
+QUOTE=''
+DEFINITION=''
+ETYMOLOGY=''
+
+Anki_Front=''
+Anki_Back=''
+
 CLEANUP=()
 
 cleanup(){
@@ -56,10 +66,21 @@ engcolorize(){
 			| sed "s/^noun/\\$bldblu[Noun]\\$txtrst/g"\
 			| sed "s/^adjective/\\$bldblu[Adj.]\\$txtrst/g"\
 			| sed "s/^adverb/\\$bldblu[Adv.]\\$txtrst/g"\
+			| sed "s/etymology:/\\$bldblu[Etymology]\\$txtrst/g"\
+			| sed "s/example:/\\$bldblu[Example]\\$txtrst/g"\
 			| sed "s/^\([0-9]\{1,2\}\.\)/\\$bldylw\1\\$txtrst/")"
 	done
 }
 
+linebreaker(){	# newline to break.
+	echo -e "$@"| sed 's/$/ <br>/g'| tr -d '\n'
+}
+
+gallower(){	# mask vowls. $1=sentence, $2=target word.
+	mask=$(echo "$2"| sed 's/[aeiouy]/_/Ig')
+	echo -e "$1"| sed "s/$2/$mask/Ig"
+}
+	
 endic(){
 	curl -sL http://dictionary.reference.com/browse/$(echo "$@"| tr ' ' '+')?s=t > $SOURCE
 
@@ -68,62 +89,46 @@ endic(){
 			| perl -pe 's/<.*?>//g'\
 			| grep -v '^$'
 	else
-			# pronounce.
-		pron="$(xmllint --html --htmlout --xpath '//*[@id="source-luna"]/div[1]/section/header/div[2]/div/span/span[2]' $SOURCE 2>/dev/null\
-			| perl -pe 's/<.*?>//g')"
-		echo $pron >> $TEMP
+		PRONOUNCIATION="$(xmllint --html --htmlout --xpath '//*[@id="source-luna"]/div[1]/section/header/div[2]/div/span/span[2]' $SOURCE 2>/dev/null\
+			| perl -pe 's/<.*?>//g')\n"
 
-			# relatives.
-		rel="$(cat $SOURCE| xmllint --html --htmlout --xpath '//*[@class="tail-box tail-type-relf"]' - 2>/dev/null\
+		RELATIVE="$(cat $SOURCE| xmllint --html --htmlout --xpath '//*[@class="tail-box tail-type-relf"]' - 2>/dev/null\
 			| perl -pe 's/<.*?>//g'\
 			| grep -v '^$'\
 			| sed 's/Related forms Expand/[Related]/g'\
 			| sed 's/Derived Forms/[Derived]/g')"
 
-			# meaning.
+
 # the sed.*999 line: bug fix for some ^Med sources.
 # the tr.*\r line: bug fix for some indented sources.
-		xmllint --html --htmlout --xpath '//section[@class="def-pbk"]' $SOURCE 2>/dev/null\
+		DEFINITION="$(xmllint --html --htmlout --xpath '(//div[@class="source-data"])[1]/div[@class="def-list"]' $SOURCE 2>/dev/null\
 			| perl -pe 's/<.*?>//g'\
 			| sed 's/^ \{1,999\}//g'\
 			| tr -d '\r'\
 			| grep -v '^$'\
-			| sed ':a;N;$!ba;s/\([0-9]\{1,3\}\.\)\n/\1) /g' >> $TEMP
+			| tr '\n' '@'\
+			| sed 's|\([0-9]\{1,3\}\.\)@|\1) |g'\
+			| tr '@' '\n')"
 
-		echo "$rel" >> $TEMP
+		ETYMOLOGY="etymology: $(xmllint --html --htmlout --xpath '//section[@id="source-etymon2"]/div[@class="source-box oneClick-area"]' $SOURCE 2>/dev/null\
+			| perl -pe 's/<.*?>//g'\
+			| grep -v '^$')"
 
-		cat $TEMP| fold -w${TERMGEOM[1]} -s | engcolorize| more -df # more fold conflicts with escaping chars (real/logical length).
-
-			# quote.
 			# incline examples.
-		quote="$(cat $TEMP\
+		QUOTE="example: $(echo -e "$DEFINITION"\
 			| grep '\.).*:'\
 			| cut -d':' -f2\
 			| head -n5\
 			| grep "$@"\
-			| sed 's/$/<br>/'\
-			| tr -d '\n')" 
-		if [[ ! $quote ]]; then # search quote from web.
-			quote="$(curl -s "$(cat $SOURCE | xmllint --html --htmlout --xpath '//*[@id="quotes-box"]/div/div/div[1]/a' - 2>/dev/null | cut -d'"' -f2) "\
-				| xmllint --html --xpath '//*[@id="o111"]' - 2>/dev/null\
-				| sed 's/<br>/. /g'| perl -pe 's/<.*?>//g'\
-				| tr '\n' ' ')"
+			| sed 's/$/"/; s/^/"/')\n"
+		# search quote from web.
+		QUOTE+="\"$(xmllint --html --htmlout -xpath '//li[@class="example-sentence"]' $SOURCE 2>/dev/null\
+				| sed 's|</li>|"\n<>"|g'\
+				| perl -pe 's/<.*?>//g'\
+				| head -n2)"
 
-			# trim if over 100 chars.
-			if (( "$(echo "$quote"| wc -c)" > 100 )); then
-				quote="$(echo $quote\
-					| sed 's/\([!?.]\)/\1\n/g'\
-					| grep -i "$@" ) "
-			fi
-			if (( "$(echo "$quote"| wc -c)" > 100 )); then
-				quote="$(echo $quote\
-					| sed 's/\([,:]\)/\1\n/g'\
-					| grep -i -A1 -B1 "$@" ) "
-			fi
-			quote="$(echo "$quote"| tr -d '\n')"
-		fi
-
-		META="$pron<br>\"$quote\"<br>$(echo "$rel"| sed 's/$/<br>/'| tr -d '\n') "
+		echo -e "$PRONOUNCIATION$DEFINITION\n$ETYMOLOGY\n$QUOTE\n$RELATIVE" > $TEMP
+		cat $TEMP| fold -w${TERMGEOM[1]} -s | engcolorize| more -df # more fold conflicts with escaping chars (real/logical length).
 
 	fi
 }
@@ -165,7 +170,6 @@ ladic(){
 
 	cat $TEMP| more -d
 
-	rm -f "$SOURCE"
 }
 
 header(){
@@ -190,7 +194,7 @@ manpg(){
 ##############################
 
 clear
-touch "$DICLIST"
+touch $DICLIST $DICHIST
 header
 while read -e word; do
 	TERMGEOM=( "$(tput lines)" "$(tput cols)" )
@@ -202,9 +206,9 @@ while read -e word; do
 			if [ -e "$TEMP" ]; then
 
 				if [ $MODE == 'En' ]; then
-					echo -e "engmisc\tBasic\t1\t$LAST<br>$META\t$(cat $TEMP\
-						| tr '\n' ' '\
-						| sed 's/\( [0-9]\{1,2\}\.\)/ <br>\1/g')" >> $DICLIST
+					Anki_Front="$(gallower "$(linebreaker "$DEFINITION\n$QUOTE")" "$LAST") "
+					Anki_Back="$(linebreaker "$LAST\n$PRONOUNCIATION\n$ETYMOLOGY\n$RELATIVE")"
+					echo -e "engmisc\tBasic\t1\t$Anki_Front\t$Anki_Back" >> $DICLIST
 
 				elif [ $MODE == 'Ja' ]; then
 					slot=$(cat $TEMP\
@@ -215,7 +219,7 @@ while read -e word; do
 						| tr -d ' ')
 
 						# quote.
-					META="$(echo $slot\
+					QUOTE="$(echo $slot\
 						| tr -d '\n'\
 						| sed 's/「/\n「/g' | sed 's/」.*/」/'\
 						| grep '」' | head -n5\
@@ -230,7 +234,7 @@ while read -e word; do
 						kanji="$LAST"
 					fi
 						# make kanji be the frontside if possible.
-					echo -e "日本語雑魚\tBasic\t1\t$kanji<br>$META\t$slot" >> $DICLIST
+					echo -e "日本語雑魚\tBasic\t1\t$kanji<br>$QUOTE\t$slot" >> $DICLIST
 
 				elif [ $MODE == 'La' ]; then
 					slot=$(cat $TEMP\
@@ -240,11 +244,12 @@ while read -e word; do
 						| sed 's/$/<br>/g'\
 						| tr '\n' ' ')
 
-					META="$(echo $slot| sed 's/<br>/\n/g'| fgrep '[')"
-					echo -e "VOCABULAE\tBasic\t1\t$LAST<br>$META\t$(echo $slot)" >> $DICLIST
+					DEFINITION="$(echo $slot| sed 's/<br>/\n/g'| fgrep '[')"
+					echo -e "VOCABULAE\tBasic\t1\t$LAST<br>$DEFINITION\t$(echo $slot)" >> $DICLIST
 
 				fi 
-				echo -e "$(echo -e "$LAST\n$META"| sed 's/<br>/\n/g' ) "
+				echo -e "$(echo $Anki_Front| sed 's/<br>/\n/g')"
+				echo -e "$MODE\t$LAST" >> $DICHIST
 				rm -f $TEMP
 			fi
 			;;
@@ -267,21 +272,22 @@ while read -e word; do
 		pg)
 			echo -e "$bldylw >> Purge list.$txtrst"	
 			mv $DICLIST "$DICLIST"_bak
-			touch $DICLIST
+			rm $DICHIST
+			touch $DICLIST $DICLIST
 			;;
 
 		d)
 			echo -e "$bldylw >> delete last entry.$txtrst"
-			tail -n1 $DICLIST| cut -d'<' -f1
+			tail -n1 $DICHIST| cut -d'<' -f1
+			sed -i '$d' $DICHIST
 			sed -i '$d' $DICLIST
 			;&	# list all after deletion.
 
 		ls)
-			listtmp="$(cat $DICLIST\
-				| cut -f1,4| cut -d'<' -f1\
-				| sed s/日本語雑魚/\\$bldwht/ \
-				| sed s/engmisc/\\$bldylw/ \
-				| sed s/VOCABULAE/\\$bldgrn/ ) $txtrst"
+			listtmp="$(cat $DICHIST\
+				| sed s/Ja/\\$bldwht/ \
+				| sed s/En/\\$bldylw/ \
+				| sed s/La/\\$bldgrn/ ) $txtrst"
 
 				echo -e "$listtmp" | more -d
 			;;
@@ -291,9 +297,17 @@ while read -e word; do
 			;;
 
 		*)
-			rm -f "$TEMP"
+			rm -f "$TEMP" "$SOURCE"
 			LAST='' # clean previous word & metas.
-			META=''
+			PRONOUNCIATION=''
+			DEFINITION=''
+			QUOTE=''
+			ETYMOLOGY=''
+			RELATIVE=''
+
+			Anki_Front=''
+			Anki_Back=''
+			
 
 			SOURCE=/tmp/.tridixsrc_$RANDOM
 			TEMP=/tmp/.tridixtmp_$RANDOM
@@ -308,7 +322,6 @@ while read -e word; do
 			fi
 
 			LAST="$word"
-			rm -f "$SOURCE"
 			;;
 	esac
 
