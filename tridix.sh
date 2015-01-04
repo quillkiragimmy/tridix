@@ -77,8 +77,12 @@ linebreaker(){	# newline to break.
 }
 
 gallower(){	# mask vowls. $1=sentence, $2=target word.
-	mask=$(echo "$2"| sed 's/[aeiouy]/_/Ig')
-	echo -e "$1"| sed "s/$2/$mask/Ig"
+	mask=$(echo "$2"| sed 's/[aeiou][nmr]/__/Ig; s/\([cs]\)[kh]/\1/Ig; s/[aeiouy]/_/Ig')
+	gallow_result=$(echo -e "$1"| sed "s/$2/$mask/Ig")
+		# for verbs ended with 'e' and 'ed'.
+	[ "${2: -1}" == 'e' ] && gallow_result=$(echo -e "$gallow_result"| sed "s/${2:0: -1}/${mask:0: -1}/Ig")
+	[ "${2: -2}" == 'ed' ] && gallow_result=$(echo -e "$gallow_result"| sed "s/${2:0: -2}/${mask:0: -2}/Ig")
+	echo -e "$gallow_result"
 }
 	
 endic(){
@@ -128,7 +132,7 @@ endic(){
 				| head -n2)"
 
 		echo -e "$PRONOUNCIATION$DEFINITION\n$ETYMOLOGY\n$QUOTE\n$RELATIVE" > $TEMP
-		cat $TEMP| fold -w${TERMGEOM[1]} -s | engcolorize| more -df # more fold conflicts with escaping chars (real/logical length).
+		cat $TEMP| fold -w${TERMGEOM[1]} -s | engcolorize| more -df	# more & fold conflict with escaping chars (real/logical length).
 
 	fi
 }
@@ -208,7 +212,7 @@ while read -e word; do
 				if [ $MODE == 'En' ]; then
 					Anki_Front="$(gallower "$(linebreaker "$DEFINITION\n$QUOTE")" "$LAST") "
 					Anki_Back="$(linebreaker "$LAST\n$PRONOUNCIATION\n$ETYMOLOGY\n$RELATIVE")"
-					echo -e "engmisc\tBasic\t1\t$Anki_Front\t$Anki_Back" >> $DICLIST
+					echo -e "engallows\tBasic\t1\t$Anki_Front\t$Anki_Back" >> $DICLIST
 
 				elif [ $MODE == 'Ja' ]; then
 					slot=$(cat $TEMP\
