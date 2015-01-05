@@ -79,9 +79,10 @@ linebreaker(){	# newline to break.
 gallower(){	# mask vowls. $1=sentence, $2=target word.
 	mask=$(echo "$2"| sed 's/[aeiou][nmr]/__/Ig; s/\([cs]\)[kh]/\1/Ig; s/[aeiouy]/_/Ig')
 	gallow_result=$(echo -e "$1"| sed "s/$2/$mask/Ig")
-		# for verbs ended with 'e' and 'ed'.
+		# for verbs ended with 'e' & 'ing' and 'ed'.
 	[ "${2: -1}" == 'e' ] && gallow_result=$(echo -e "$gallow_result"| sed "s/${2:0: -1}/${mask:0: -1}/Ig")
 	[ "${2: -2}" == 'ed' ] && gallow_result=$(echo -e "$gallow_result"| sed "s/${2:0: -2}/${mask:0: -2}/Ig")
+	[ "${2: -3}" == 'ing' ] && gallow_result=$(echo -e "$gallow_result"| sed "s/${2:0: -3}/${mask:0: -3}/Ig")
 	echo -e "$gallow_result"
 }
 	
@@ -132,7 +133,7 @@ endic(){
 				| head -n2)"
 
 		echo -e "$PRONOUNCIATION$DEFINITION\n$ETYMOLOGY\n$QUOTE\n$RELATIVE" > $TEMP
-		cat $TEMP| fold -w${TERMGEOM[1]} -s | engcolorize| more -df	# more & fold conflict with escaping chars (real/logical length).
+		cat $TEMP| fold -w${TERMGEOM[1]} -s | engcolorize | more -df	# more & fold conflict with escaping chars (real/logical length).
 
 	fi
 }
