@@ -33,6 +33,7 @@ DICLIST=$HOME/tridixlist.list
 DICHIST=$HOME/.tridixhistory
 MODE='En'	#en,ja,la.
 TERMGEOM=( "$(tput lines)" "$(tput cols)" )
+PAGER='more -df'
 SOURCE=''
 TEMP=''
 LAST=''
@@ -138,7 +139,7 @@ endic(){
 				| head -n2)"
 
 		echo -e "$PRONOUNCIATION$DEFINITION\n$ETYMOLOGY\n$QUOTE\n$RELATIVE" > $TEMP
-		cat $TEMP| fold -w${TERMGEOM[1]} -s | engcolorize | more -df	# more & fold conflict with escaping chars (real/logical length).
+		cat $TEMP| fold -w${TERMGEOM[1]} -s | engcolorize| $PAGER 	# more & fold conflict with escaping chars (real/logical length).
 
 	fi
 }
@@ -159,7 +160,7 @@ jadic(){
 		fi
 		sed -i -n "1,${BARS[10]} p" $TEMP 2>/dev/null
 
-		cat $TEMP| more -d
+		cat $TEMP| $PAGER
 
 	fi
 
@@ -178,7 +179,7 @@ ladic(){
 
 	BARS=( '1' $(fgrep -n "━━━━━━━━━━━━━" $TEMP| cut -d':' -f1) '$' )
 
-	cat $TEMP| more -d
+	cat $TEMP| fold -w${TERMGEOM[1]} -s| $PAGER
 
 }
 
@@ -188,7 +189,9 @@ header(){
 }
 
 manpg(){
-	echo -e "$txtylw\tYou can enter :$txtrst"
+	echo -e "Usage: tridix.sh [-p | --pagerless] [-h | --help]"
+	echo -e ""
+	echo -e "$txtylw\tWhen script is running, you can enter :$txtrst"
 	echo "1. Any phrase like 'dictionary' '辞書'."
 	echo "2. 'e' / 'j' / 'l' to switch to Eng / Jap / Lat mode"
 	echo "3. '' / '1' ... '9' to add N'th word into list."
@@ -203,8 +206,22 @@ manpg(){
 # main program.
 ##############################
 
-clear
 touch $DICLIST $DICHIST
+
+while (( $# != 0 )); do
+	case "$1" in
+		'-h')
+			manpg
+			exit 0
+			;;
+		'-p')
+			PAGER='cat'
+			;;
+	esac
+	shift
+done
+
+clear
 header
 while read -e word; do
 	TERMGEOM=( "$(tput lines)" "$(tput cols)" )
