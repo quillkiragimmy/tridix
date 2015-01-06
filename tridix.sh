@@ -30,7 +30,7 @@ bldwht='\e[1;37m' # White
 # gloable vars.
 ##############################
 DICLIST=$HOME/tridixlist.list
-DICHIST=$HOME/.tridixhistory
+DICHIST="$DICLIST"_history
 MODE='En'	#en,ja,la.
 TERMGEOM=( "$(tput lines)" "$(tput cols)" )
 PAGER='more -df'
@@ -78,7 +78,7 @@ linebreaker(){	# newline to break.
 }
 
 gallower(){	# mask vowls. $1=sentence, $2=target word.
-	mask=$(echo "$2"| sed 's/[aeiou][nmr]/__/Ig; s/\([cs]\)[kh]/\1/Ig; s/\([^aeiou]\)[^aeiou]/\1_/Ig; s/[aeiouy]/_/Ig')
+	mask=$(echo "$2"| sed 's/[aeiou][nmr]/__/Ig; s/\([cs]\)[kh]/\1_/Ig; s/\([^aeiou]\)[^aeiou]/\1_/Ig; s/[aeiouy]/_/Ig')
 	gallow_result=$(echo -e "$1"| sed "s/$2/$mask/Ig")
 
 		# for words ended with postfixs.
@@ -101,9 +101,11 @@ endic(){
 			| grep -v '^$'
 	else
 		PRONOUNCIATION="$(xmllint --html --htmlout --xpath '//*[@id="source-luna"]/div[1]/section/header/div[2]/div/span/span[2]' $SOURCE 2>/dev/null\
+			| tr -d '\r'\
 			| perl -pe 's/<.*?>//g')\n"
 
 		RELATIVE="$(cat $SOURCE| xmllint --html --htmlout --xpath '//*[@class="tail-box tail-type-relf"]' - 2>/dev/null\
+			| tr -d '\r'\
 			| perl -pe 's/<.*?>//g'\
 			| grep -v '^$'\
 			| sed 's/Related forms Expand/[Related]/g'\
@@ -113,20 +115,22 @@ endic(){
 # the sed.*999 line: bug fix for some ^Med sources.
 # the tr.*\r line: bug fix for some indented sources.
 		DEFINITION="$(xmllint --html --htmlout --xpath '(//div[@class="source-data"])[1]/div[@class="def-list"]' $SOURCE 2>/dev/null\
+			| tr -d '\r'\
 			| perl -pe 's/<.*?>//g'\
 			| sed 's/^ \{1,999\}//g'\
-			| tr -d '\r'\
 			| grep -v '^$'\
 			| tr '\n' '@'\
 			| sed 's|\([0-9]\{1,3\}\.\)@|\1) |g'\
 			| tr '@' '\n')"
 
 		ETYMOLOGY="etymology: $(xmllint --html --htmlout --xpath '//section[@id="source-etymon2"]/div[@class="source-box oneClick-area"]' $SOURCE 2>/dev/null\
+			| tr -d '\r'\
 			| perl -pe 's/<.*?>//g'\
 			| grep -v '^$')"
 
 			# incline examples.
 		QUOTE="example: $(echo -e "$DEFINITION"\
+			| tr -d '\r'\
 			| grep '\.).*:'\
 			| cut -d':' -f2\
 			| head -n5\
@@ -134,9 +138,10 @@ endic(){
 			| sed 's/$/"/; s/^/"/')\n"
 		# search quote from web.
 		QUOTE+="\"$(xmllint --html --htmlout -xpath '//li[@class="example-sentence"]' $SOURCE 2>/dev/null\
-				| sed 's|</li>|"\n<>"|g'\
-				| perl -pe 's/<.*?>//g'\
-				| head -n2)"
+			| tr -d '\r'\
+			| sed 's|</li>|"\n<>"|g'\
+			| perl -pe 's/<.*?>//g'\
+			| head -n2)"
 
 		echo -e "$PRONOUNCIATION$DEFINITION\n$ETYMOLOGY\n$QUOTE\n$RELATIVE" > $TEMP
 		cat $TEMP| fold -w${TERMGEOM[1]} -s | engcolorize| $PAGER 	# more & fold conflict with escaping chars (real/logical length).
@@ -189,7 +194,7 @@ header(){
 }
 
 manpg(){
-	echo -e "Usage: tridix.sh [-p | --pagerless] [-h | --help]"
+	echo -e "Usage: tridix.sh [-p | --pagerless] [-h | --help] [--list <file_path>]"
 	echo -e ""
 	echo -e "$txtylw\tWhen script is running, you can enter :$txtrst"
 	echo "1. Any phrase like 'dictionary' '辞書'."
@@ -206,8 +211,6 @@ manpg(){
 # main program.
 ##############################
 
-touch $DICLIST $DICHIST
-
 while (( $# != 0 )); do
 	case "$1" in
 		'-h'| '--help')
@@ -217,10 +220,16 @@ while (( $# != 0 )); do
 		'-p'| '--pagerless')
 			PAGER='cat'
 			;;
+		'--list')
+			shift
+			DICLIST="$1"
+			DICHIST="$1"_history
+			;;
 	esac
 	shift
 done
 
+touch $DICLIST $DICHIST
 clear
 header
 while read -e word; do
