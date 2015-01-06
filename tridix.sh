@@ -210,11 +210,11 @@ touch $DICLIST $DICHIST
 
 while (( $# != 0 )); do
 	case "$1" in
-		'-h')
+		'-h'| '--help')
 			manpg
 			exit 0
 			;;
-		'-p')
+		'-p'| '--pagerless')
 			PAGER='cat'
 			;;
 	esac
@@ -284,16 +284,19 @@ while read -e word; do
 		e)
 			echo -e "$bldylw >> English Mode.$txtrst"	
 			MODE='En'
+			rm $TEMP $SOURCE
 			;;
 
 		j)
 			echo -e "$bldylw >> 日本語モード$txtrst"	
 			MODE='Ja'
+			rm $TEMP $SOURCE
 			;;
 
 		l)
 			echo -e "$bldylw >> MODVSLATINVS$txtrst"	
 			MODE='La'
+			rm $TEMP $SOURCE
 			;;
 
 		pg)
@@ -306,9 +309,8 @@ while read -e word; do
 		d)
 			echo -e "$bldylw >> delete last entry.$txtrst"
 			tail -n1 $DICHIST| cut -d'<' -f1
-			sed -i '$d' $DICHIST
-			sed -i '$d' $DICLIST
-			;&	# list all after deletion.
+			sed -i '$d' $DICLIST $DICHIS	# list all after deletion.
+			;&
 
 		ls)
 			listtmp="$(cat $DICHIST\
