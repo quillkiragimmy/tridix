@@ -79,10 +79,11 @@ linebreaker(){	# newline to break.
 
 gallower(){	# mask vowls. $1=sentence, $2=target word.
 	mask=$(echo "$2"| sed 's/[aeiou][nmr]/__/Ig; s/\([cs]\)[kh]/\1_/Ig; s/\([^aeiou]\)[^aeiou]/\1_/Ig; s/[aeiouy]/_/Ig')
+	mask="${2:0:1}${mask:1}"
 	gallow_result=$(echo -e "$1"| sed "s/$2/$mask/Ig")
 
 		# for words ended with postfixs.
-	postfix=( 'e' 'y' 'ed' 'ing' 'ion' 'able' )
+	postfix=( 'e' 'y' 'ed' 'ing' 'ion' 'able' 'ical' 'ically' )
 	for (( i=0; i<${#postfix[*]}; i++ )); do
 		if [ "${2: -${#postfix[i]}}" == "${postfix[i]}" ]; then
 			gallow_result=$(echo -e "$gallow_result"| sed "s/${2:0: -${#postfix[i]}}/${mask:0: -${#postfix[i]}}/Ig")
@@ -93,7 +94,7 @@ gallower(){	# mask vowls. $1=sentence, $2=target word.
 }
 	
 endic(){
-	curl -sL http://dictionary.reference.com/browse/$(echo "$@"| tr ' ' '+')?s=t > $SOURCE
+	curl -sL http://dictionary.reference.com/browse/$(echo "$@"| tr ' ' '+')?s=t| tr -d '\r'| sed 's/^ \{1,999\}//g' > $SOURCE
 
 	if [[ $(fgrep 'Did you mean' $SOURCE) ]]; then
 		xmllint --html --htmlout --xpath '//section[@class="more-suggestions"]' $SOURCE 2>/dev/null\
@@ -101,11 +102,9 @@ endic(){
 			| grep -v '^$'
 	else
 		PRONOUNCIATION="$(xmllint --html --htmlout --xpath '//*[@id="source-luna"]/div[1]/section/header/div[2]/div/span/span[2]' $SOURCE 2>/dev/null\
-			| tr -d '\r'\
 			| perl -pe 's/<.*?>//g')\n"
 
 		RELATIVE="$(cat $SOURCE| xmllint --html --htmlout --xpath '//*[@class="tail-box tail-type-relf"]' - 2>/dev/null\
-			| tr -d '\r'\
 			| perl -pe 's/<.*?>//g'\
 			| grep -v '^$'\
 			| sed 's/Related forms Expand/[Related]/g'\
@@ -115,22 +114,18 @@ endic(){
 # the sed.*999 line: bug fix for some ^Med sources.
 # the tr.*\r line: bug fix for some indented sources.
 		DEFINITION="$(xmllint --html --htmlout --xpath '(//div[@class="source-data"])[1]/div[@class="def-list"]' $SOURCE 2>/dev/null\
-			| tr -d '\r'\
 			| perl -pe 's/<.*?>//g'\
-			| sed 's/^ \{1,999\}//g'\
 			| grep -v '^$'\
 			| tr '\n' '@'\
 			| sed 's|\([0-9]\{1,3\}\.\)@|\1) |g'\
 			| tr '@' '\n')"
 
 		ETYMOLOGY="etymology: $(xmllint --html --htmlout --xpath '//section[@id="source-etymon2"]/div[@class="source-box oneClick-area"]' $SOURCE 2>/dev/null\
-			| tr -d '\r'\
 			| perl -pe 's/<.*?>//g'\
 			| grep -v '^$')"
 
 			# incline examples.
 		QUOTE="example: $(echo -e "$DEFINITION"\
-			| tr -d '\r'\
 			| grep '\.).*:'\
 			| cut -d':' -f2\
 			| head -n5\
@@ -138,7 +133,6 @@ endic(){
 			| sed 's/$/"/; s/^/"/')\n"
 		# search quote from web.
 		QUOTE+="\"$(xmllint --html --htmlout -xpath '//li[@class="example-sentence"]' $SOURCE 2>/dev/null\
-			| tr -d '\r'\
 			| sed 's|</li>|"\n<>"|g'\
 			| perl -pe 's/<.*?>//g'\
 			| head -n2)"
