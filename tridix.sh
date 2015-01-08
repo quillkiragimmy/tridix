@@ -271,6 +271,7 @@ while read -e word; do
 					fi
 						# make kanji be the frontside if possible.
 					echo -e "日本語雑魚\tBasic\t1\t$kanji<br>$QUOTE\t$slot" >> $DICLIST
+					LAST="$kanji"
 
 				elif [ $MODE == 'La' ]; then
 					slot=$(cat $TEMP\
@@ -293,32 +294,32 @@ while read -e word; do
 		e)
 			echo -e "$bldylw >> English Mode.$txtrst"	
 			MODE='En'
-			rm $TEMP $SOURCE
+			rm -f $TEMP $SOURCE
 			;;
 
 		j)
 			echo -e "$bldylw >> 日本語モード$txtrst"	
 			MODE='Ja'
-			rm $TEMP $SOURCE
+			rm -f $TEMP $SOURCE
 			;;
 
 		l)
 			echo -e "$bldylw >> MODVSLATINVS$txtrst"	
 			MODE='La'
-			rm $TEMP $SOURCE
+			rm -f $TEMP $SOURCE
 			;;
 
 		pg)
 			echo -e "$bldylw >> Purge list.$txtrst"	
 			mv $DICLIST "$DICLIST"_bak
-			rm $DICHIST
+			rm -f $DICHIST
 			touch $DICLIST $DICLIST
 			;;
 
 		d)
 			echo -e "$bldylw >> delete last entry.$txtrst"
 			tail -n1 $DICHIST| cut -d'<' -f1
-			sed -i '$d' $DICLIST $DICHIS	# list all after deletion.
+			sed -i '$d' $DICLIST $DICHIST	# list all after deletion.
 			;&
 
 		ls)
