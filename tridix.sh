@@ -157,13 +157,16 @@ jadic(){
 	if [ "$(cat $SOURCE| fgrep '見出し語は見つかりません')" == '' ]; then	# for error fetching.
 		for (( word=1; word < 11; word++ )); do
 			kiji_head=$(xmllint --html --htmlout --xpath "(//div[@class=\"NetDicHead\"])[$word]" $SOURCE 2>/dev/null| perl -pe 's/<.*?>//g')
-			kiji_body=$(xmllint --html --htmlout --xpath "(//div[@class=\"NetDicBody\"])[$word]" $SOURCE 2>/dev/null| perl -pe 's/<.*?>//g')
+			kiji_body=$(xmllint --html --htmlout --xpath "(//div[@class=\"NetDicBody\"])[$word]" $SOURCE 2>/dev/null\
+				| sed 's/<span style="border/\n\t</g'\
+				| sed 's/<div style="float:left/\n</g'\
+				| perl -pe 's/<.*?>//g')
 			if [ -z "$kiji_body" ]; then
 				kiji_body=$(xmllint --html --htmlout --xpath "(//div[@class=\"Nhgkt\"])[$word]" $SOURCE 2>/dev/null| perl -pe 's/<.*?>//g')
 			fi
 
 			ETYMOLOGY="$(echo $kiji_body| perl -pe 's/.*(〔.*?〕).*/\1/g')"
-			DEFINITION="$(echo $kiji_body| perl -pe 's/〔.*?〕//g')"
+			DEFINITION="$(echo -e "$kiji_body"| perl -pe 's/〔.*?〕//g')"
 
 			if [ ! -z "$kiji_head" ]; then
 				echo -e "━━━━━━━━━━━━━━━━━━━━[ $word ]━━━━━━━━━━━━━━━━━━━━" >> $TEMP
