@@ -1,6 +1,5 @@
 #!/usr/bin/bash
 
-# what will be different in $(git fetch?)
 ##############################
 # text colors.
 ##############################
@@ -77,9 +76,9 @@ linebreaker(){	# newline to break.
 	echo -e "$@"| sed 's/$/ <br>/g'| tr -d '\n'
 }
 
-gallower(){	# mask vowls. $1=sentence, $2=target word.
+engallower(){	# mask vowls. $1=sentence, $2=target word.
 	mask=$(echo "$2"| sed 's/[aeiou][nmr]/__/Ig; s/\([cs]\)[kh]/\1_/Ig; s/\([^aeiou]\)[^aeiou]/\1_/Ig; s/[aeiouy]/_/Ig')
-	mask="${2:0:1}${mask:1}"
+	mask="${2:0:1}${mask:1: -1}${2: -1}"
 	gallow_result=$(echo -e "$1"| sed "s/$2/$mask/Ig")
 
 		# for words ended with postfixs.
@@ -92,16 +91,28 @@ gallower(){	# mask vowls. $1=sentence, $2=target word.
 
 	echo -e "$gallow_result"
 }
-	
+
+jagallower(){
+	kana='あいうえおかきくけこがぎぐげごさしすせそざじずぜぞたちつてとだぢづでどなにぬねのはひふへほばびぶべぼぱぴぷぺぽまみむめもやゃゆゅよょらりるれろわんをアイウエオカキクケコガギグゲゴサシスセソザジズゼゾタチツテトダヂヅデドナニヌネノハヒフヘホバビブベボパピプペポマミムメモヤャユュヨョラリルレロワンヲ'
+
+	gallow_result=$(echo "$1"| sed "s/[$kana]/－/g")
+	gallow_result="${gallow_result:0: -1}${1: -1}"
+	echo -e "$gallow_result"
+
+}
+
 endic(){
-	curl -sL http://dictionary.reference.com/browse/$(echo "$@"| tr ' ' '+')?s=t| tr -d '\r'| sed 's/^ \{1,999\}//g' > $SOURCE
+
+# the sed.*\} line: bug fix for some indented sources.
+# the tr.*\r line: bug fix for some ^Med sources.
+	curl -sL http://dictionary.reference.com/browse/$(echo "$@"| tr ' ' '+')?s=t| tr -d '\r'| sed 's/^ \{1,\}//g' > $SOURCE
 
 	if [[ $(fgrep 'Did you mean' $SOURCE) ]]; then
 		xmllint --html --htmlout --xpath '//section[@class="more-suggestions"]' $SOURCE 2>/dev/null\
 			| perl -pe 's/<.*?>//g'\
 			| grep -v '^$'
 	else
-		PRONOUNCIATION="$(xmllint --html --htmlout --xpath '//*[@id="source-luna"]/div[1]/section/header/div[2]/div/span/span[2]' $SOURCE 2>/dev/null\
+		PRONOUNCIATION="$(xmllint --html --htmlout --xpath '//span[@class="pron ipapron"]' $SOURCE 2>/dev/null\
 			| perl -pe 's/<.*?>//g')\n"
 
 		RELATIVE="$(cat $SOURCE| xmllint --html --htmlout --xpath '//*[@class="tail-box tail-type-relf"]' - 2>/dev/null\
@@ -110,9 +121,6 @@ endic(){
 			| sed 's/Related forms Expand/[Related]/g'\
 			| sed 's/Derived Forms/[Derived]/g')"
 
-
-# the sed.*999 line: bug fix for some ^Med sources.
-# the tr.*\r line: bug fix for some indented sources.
 		DEFINITION="$(xmllint --html --htmlout --xpath '(//div[@class="source-data"])[1]/div[@class="def-list"]' $SOURCE 2>/dev/null\
 			| perl -pe 's/<.*?>//g'\
 			| grep -v '^$'\
@@ -159,7 +167,7 @@ jadic(){
 		fi
 		sed -i -n "1,${BARS[10]} p" $TEMP 2>/dev/null
 
-		cat $TEMP| $PAGER
+		cat $TEMP| fold -w${TERMGEOM[1]} -s | $PAGER
 
 	fi
 
@@ -236,42 +244,46 @@ while read -e word; do
 			if [ -e "$TEMP" ]; then
 
 				if [ $MODE == 'En' ]; then
-					Anki_Front="$(gallower "$(linebreaker "$DEFINITION\n$QUOTE")" "$LAST") "
+					Anki_Front="$(engallower "$(linebreaker "$DEFINITION\n$QUOTE")" "$LAST") "
 					Anki_Back="$(linebreaker "$LAST\n$PRONOUNCIATION\n$ETYMOLOGY\n$RELATIVE")"
 					echo -e "engallows\tBasic\t1\t$Anki_Front\t$Anki_Back" >> $DICLIST
 
 				elif [ $MODE == 'Ja' ]; then
-					slot=$(cat $TEMP\
-						| sed -n "${BARS[word-1]}, ${BARS[word]} p"\
-						| egrep -v '^[ ]*$'\
-						| grep -v '━'\
-						| tr '\n' ' '\
-						| tr -d ' ')
+					kiji_head=$(xmllint --html --htmlout --xpath "(//div[@class=\"NetDicHead\"])[$word]" $SOURCE 2>/dev/null| perl -pe 's/<.*?>//g')
+					kiji_body=$(xmllint --html --htmlout --xpath "(//div[@class=\"NetDicBody\"])[$word]" $SOURCE 2>/dev/null| perl -pe 's/<.*?>//g')
 
-						# quote.
-					QUOTE="$(echo $slot\
-						| tr -d '\n'\
-						| sed 's/「/\n「/g' | sed 's/」.*/」/'\
-						| grep '」' | head -n5\
+					ETYMOLOGY="$(echo $kiji_body| perl -pe 's/.*(〔.*?〕).*/\1/g')"
+					DEFINITION="$(echo $kiji_body| perl -pe 's/〔.*?〕//g')"
+					PRONOUNCIATION="$(xmllint --html --htmlout --xpath "(//h2[@class=\"midashigo\"])[$word]/b[1]" $SOURCE 2>/dev/null\
+						| perl -pe 's/<.*?>//g')"
+					[ -z "$PRONOUNCIATION" ] && PRONOUNCIATION=$LAST
+
+					QUOTE="$(echo $kiji_body\
+						| perl -pe 's/<.*?>//g'\
+						| perl -pe 's/.*?(「.*?」).*?/\1/g'\
+						| sed 's/」/」\n/g'\
 						| grep '－'\
-						| tr '\n' '#'| sed 's/#/<br>/g')"
+						| sed 's/$/<br>/g'\
+						| tr -d '\n')"
 
 						# find kanji(if any).
 					kanji=''
-					if [[ $(echo $slot| sed 's/\(.\{50,50\}\).*/\1/'| fgrep '【') ]]; then
-						kanji="$(echo $slot| sed 's/\(.\{50,50\}\).*/\1/'| perl -pe 's/.*?(【.*?】).*/\1/')"
+					if [[ $(echo $kiji_head| fgrep '【') ]]; then
+						kanji="$(echo $kiji_head| perl -pe 's/.*?(【.*?】).*/\1/')"
 					else
 						kanji="$LAST"
 					fi
-						# make kanji be the frontside if possible.
-					echo -e "日本語雑魚\tBasic\t1\t$kanji<br>$QUOTE\t$slot" >> $DICLIST
+
+					Anki_Front="$(jagallower "$PRONOUNCIATION")<br>$DEFINITION<br>$QUOTE"
+					Anki_Back="$kanji<br>$PRONOUNCIATION<br>$ETYMOLOGY"
+					echo -e "日本語謎々\tBasic\t1\t$Anki_Front\t$Anki_Back" >> $DICLIST
 					LAST="$kanji"
 
 				elif [ $MODE == 'La' ]; then
 					slot=$(cat $TEMP\
 						| sed -n "${BARS[word-1]}, ${BARS[word]} p"\
 						| grep -v '━'\
-						| sed 's/\s\{1,99\}/ /g'\
+						| sed 's/\s\{1,\}/ /g'\
 						| sed 's/$/<br>/g'\
 						| tr '\n' ' ')
 
@@ -280,6 +292,9 @@ while read -e word; do
 
 				fi 
 				echo -e "$(echo $Anki_Front| sed 's/<br>/\n/g')"
+				echo -e "______________________________________"
+				echo -e "$(echo $Anki_Back| sed 's/<br>/\n/g')"
+
 				echo -e "$MODE\t$LAST" >> $DICHIST
 				rm -f $TEMP
 			fi
