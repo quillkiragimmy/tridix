@@ -33,6 +33,7 @@ DICHIST="$DICLIST"_history
 MODE='En'	#en,ja,la.
 TERMGEOM=( "$(tput lines)" "$(tput cols)" )
 PAGER='more -df'
+JPAGER='more -d' # pager for Asia font.
 SOURCE=''
 TEMP=''
 LAST=''
@@ -154,20 +155,25 @@ endic(){
 jadic(){
 	curl http://www.weblio.jp/content/"$@" -s > $SOURCE
 	if [ "$(cat $SOURCE| fgrep '見出し語は見つかりません')" == '' ]; then	# for error fetching.
-		xmllint --html --htmlout  --format --xpath '//div[@class="kijiWrp"]' $SOURCE 2>/dev/null\
-			| sed 's/<!--開始/━━━━━━━━━━━━━\n@@/'\
-			| perl -pe 's/<.*?>//g'\
-			| sed 's/  /\n/g'\
-			| grep -v '@@'\
-			| grep -v '^$' > $TEMP
+		for (( word=1; word < 11; word++ )); do
+			kiji_head=$(xmllint --html --htmlout --xpath "(//div[@class=\"NetDicHead\"])[$word]" $SOURCE 2>/dev/null| perl -pe 's/<.*?>//g')
+			kiji_body=$(xmllint --html --htmlout --xpath "(//div[@class=\"NetDicBody\"])[$word]" $SOURCE 2>/dev/null| perl -pe 's/<.*?>//g')
+			if [ -z "$kiji_body" ]; then
+				kiji_body=$(xmllint --html --htmlout --xpath "(//div[@class=\"Nhgkt\"])[$word]" $SOURCE 2>/dev/null| perl -pe 's/<.*?>//g')
+			fi
 
-		BARS=( $(fgrep -n "━━━━━━━━━━━━━" $TEMP| cut -d':' -f1) '$' )
-		if [ "${BARS[0]}" == '$' ]; then
-			BARS=( '1' $BARS )
-		fi
-		sed -i -n "1,${BARS[10]} p" $TEMP 2>/dev/null
+			ETYMOLOGY="$(echo $kiji_body| perl -pe 's/.*(〔.*?〕).*/\1/g')"
+			DEFINITION="$(echo $kiji_body| perl -pe 's/〔.*?〕//g')"
 
-		cat $TEMP| fold -w${TERMGEOM[1]} -s | $PAGER
+			if [ ! -z "$kiji_head" ]; then
+				echo -e "━━━━━━━━━━━━━━━━━━━━[ $word ]━━━━━━━━━━━━━━━━━━━━" >> $TEMP
+				echo -e "$bldwht$kiji_head" >> $TEMP
+				echo -e "$txtgrn$ETYMOLOGY" >> $TEMP
+				echo -e "$txtrst$DEFINITION" >> $TEMP
+			fi
+
+		done
+		cat $TEMP| $JPAGER
 
 	fi
 
@@ -251,6 +257,9 @@ while read -e word; do
 				elif [ $MODE == 'Ja' ]; then
 					kiji_head=$(xmllint --html --htmlout --xpath "(//div[@class=\"NetDicHead\"])[$word]" $SOURCE 2>/dev/null| perl -pe 's/<.*?>//g')
 					kiji_body=$(xmllint --html --htmlout --xpath "(//div[@class=\"NetDicBody\"])[$word]" $SOURCE 2>/dev/null| perl -pe 's/<.*?>//g')
+					if [ -z "$kiji_body" ]; then
+						kiji_body=$(xmllint --html --htmlout --xpath "(//div[@class=\"Nhgkt\"])[$word]" $SOURCE 2>/dev/null| perl -pe 's/<.*?>//g')
+					fi
 
 					ETYMOLOGY="$(echo $kiji_body| perl -pe 's/.*(〔.*?〕).*/\1/g')"
 					DEFINITION="$(echo $kiji_body| perl -pe 's/〔.*?〕//g')"
