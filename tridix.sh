@@ -149,7 +149,7 @@ endic(){
 			| head -n2)"
 
 		echo -e "$PRONOUNCIATION$DEFINITION\n$ETYMOLOGY\n$QUOTE\n$RELATIVE" > $TEMP
-		cat $TEMP| fold -w${TERMGEOM[1]} -s | engcolorize| $PAGER 	# more & fold conflict with escaping chars (real/logical length).
+		cat $TEMP| fold -w${TERMGEOM[1]} -s | engcolorize| $PAGER	# more & fold conflict with escaping chars (real/logical length).
 
 	fi
 }
@@ -218,6 +218,10 @@ manpg(){
 ##############################
 # main program.
 ##############################
+
+tt(){
+	cat ~/t| less -RF
+}
 
 while (( $# != 0 )); do
 	case "$1" in
@@ -372,6 +376,7 @@ while read -e word; do
 			CLEANUP=( "$SOURCE" "$TEMP" )
 
 			if [ $MODE == 'En' ]; then
+		#		tt
 				endic "$word"
 			elif [ $MODE == 'Ja' ]; then
 				jadic "$word"
