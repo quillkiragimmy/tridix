@@ -94,11 +94,13 @@ engallower(){	# mask vowls. $1=sentence, $2=target word.
 }
 
 jagallower(){
-	kana='あいうえおかきくけこがぎぐげごさしすせそざじずぜぞたちつてとだぢづでどなにぬねのはひふへほばびぶべぼぱぴぷぺぽまみむめもやゃゆゅよょらりるれろわんをアイウエオカキクケコガギグゲゴサシスセソザジズゼゾタチツテトダヂヅデドナニヌネノハヒフヘホバビブベボパピプペポマミムメモヤャユュヨョラリルレロワンヲ'
+	kana='あいうえおかきくけこがぎぐげごさしすせそざじずぜぞたちつてとだぢづでどなにぬねのはひふへほばびぶべぼぱぴぷぺぽまみむめもやゆよらりるれろわんをアイウエオカキクケコガギグゲゴサシスセソザジズゼゾタチツテトダヂヅデドナニヌネノハヒフヘホバビブベボパピプペポマミムメモヤユヨラリルレロワンヲ'
+	chisaikana='ゃゅょャュョ'
 
-	gallow_result=$(echo "$1"| sed "s/[$kana]/－/g")
+	gallow_result=$(echo "$1"| sed "s/[$kana]/－/g; s/[$chisaikana]/_/g")
 	gallow_result="${gallow_result:0: -1}${1: -1}"
 	echo -e "$gallow_result"
+
 
 }
 
@@ -155,28 +157,23 @@ endic(){
 jadic(){
 	curl http://www.weblio.jp/content/"$@" -s > $SOURCE
 	if [ "$(cat $SOURCE| fgrep '見出し語は見つかりません')" == '' ]; then	# for error fetching.
-		for (( word=1; word < 11; word++ )); do
-			kiji_head=$(xmllint --html --htmlout --xpath "(//div[@class=\"NetDicHead\"])[$word]" $SOURCE 2>/dev/null| perl -pe 's/<.*?>//g')
-			kiji_body=$(xmllint --html --htmlout --xpath "(//div[@class=\"NetDicBody\"])[$word]" $SOURCE 2>/dev/null\
+		for (( i=1; i < 11; i++ )); do
+			kiji_head=$(xmllint --html --htmlout --xpath "(//div[@class=\"NetDicHead\"])[$i]" $SOURCE 2>/dev/null| perl -pe 's/<.*?>//g')
+			kiji_body=$(xmllint --html --htmlout --xpath "(//div[@class=\"NetDicBody\"])[$i]" $SOURCE 2>/dev/null\
 				| sed 's/<span style="border/\n\t</g'\
 				| sed 's/<div style="float:left/\n</g'\
 				| perl -pe 's/<.*?>//g')
-			if [ -z "$kiji_body" ]; then
-				kiji_body=$(xmllint --html --htmlout --xpath "(//div[@class=\"Nhgkt\"])[$word]" $SOURCE 2>/dev/null| perl -pe 's/<.*?>//g')
-			fi
+			[ -z "$kiji_body" ] && kiji_body=$(xmllint --html --htmlout --xpath "(//div[@class=\"Wkpja\"])[$i]/p" $SOURCE 2>/dev/null| perl -pe 's/<.*?>//g')
+			[ -z "$kiji_body" ] && kiji_body=$(xmllint --html --htmlout --xpath "(//div[@class=\"Nhgkt\"])[$i]" $SOURCE 2>/dev/null| perl -pe 's/<.*?>//g')
 
-			ETYMOLOGY="$(echo $kiji_body| perl -pe 's/.*(〔.*?〕).*/\1/g')"
-			DEFINITION="$(echo -e "$kiji_body"| perl -pe 's/〔.*?〕//g')"
-
-			if [ ! -z "$kiji_head" ]; then
-				echo -e "━━━━━━━━━━━━━━━━━━━━[ $word ]━━━━━━━━━━━━━━━━━━━━" >> $TEMP
+			if [ ! -z "$kiji_body" ]; then
+				echo -e "━━━━━━━━━━━━━━━━━━━━[ $i ]━━━━━━━━━━━━━━━━━━━━" >> $TEMP
 				echo -e "$bldwht$kiji_head" >> $TEMP
-				echo -e "$txtgrn$ETYMOLOGY" >> $TEMP
-				echo -e "$txtrst$DEFINITION" >> $TEMP
+				echo -e "$txtrst$kiji_body" >> $TEMP
 			fi
 
 		done
-		cat $TEMP| $JPAGER
+		[ -e $TEMP ] && ( cat $TEMP| $JPAGER )
 
 	fi
 
@@ -260,13 +257,14 @@ while read -e word; do
 				elif [ $MODE == 'Ja' ]; then
 					kiji_head=$(xmllint --html --htmlout --xpath "(//div[@class=\"NetDicHead\"])[$word]" $SOURCE 2>/dev/null| perl -pe 's/<.*?>//g')
 					kiji_body=$(xmllint --html --htmlout --xpath "(//div[@class=\"NetDicBody\"])[$word]" $SOURCE 2>/dev/null| perl -pe 's/<.*?>//g')
-					if [ -z "$kiji_body" ]; then
-						kiji_body=$(xmllint --html --htmlout --xpath "(//div[@class=\"Nhgkt\"])[$word]" $SOURCE 2>/dev/null| perl -pe 's/<.*?>//g')
-					fi
+					[ -z "$kiji_body" ] && kiji_body=$(xmllint --html --htmlout --xpath "(//div[@class=\"Wkpja\"])[$word]/p" $SOURCE 2>/dev/null| perl -pe 's/<.*?>//g')
+					[ -z "$kiji_body" ] && kiji_body=$(xmllint --html --htmlout --xpath "(//div[@class=\"Nhgkt\"])[$word]" $SOURCE 2>/dev/null| perl -pe 's/<.*?>//g')
 
 					ETYMOLOGY="$(echo $kiji_body| perl -pe 's/.*(〔.*?〕).*/\1/g')"
 					DEFINITION="$(echo $kiji_body| perl -pe 's/〔.*?〕//g')"
 					PRONOUNCIATION="$(xmllint --html --htmlout --xpath "(//h2[@class=\"midashigo\"])[$word]/b[1]" $SOURCE 2>/dev/null\
+						| perl -pe 's/<.*?>//g')"
+					[ -z "$PRONOUNCIATION" ] && PRONOUNCIATION="$(xmllint --html --htmlout --xpath "(//h2[@class=\"midashigo\"])[$word]" $SOURCE 2>/dev/null\
 						| perl -pe 's/<.*?>//g')"
 					[ -z "$PRONOUNCIATION" ] && PRONOUNCIATION=$LAST
 
