@@ -40,10 +40,13 @@ LAST=''
 BARS=''       # used by j/ldic.
 
 PRONOUNCIATION=''
-RELATIVE=''
-QUOTE=''
 DEFINITION=''
 ETYMOLOGY=''
+ETYMOLOGY_ALL=''
+RELATIVE=''
+RELATIVE_ALL=''
+QUOTE=''
+QUOTE_ALL=''
 
 Anki_Front=''
 Anki_Back=''
@@ -67,8 +70,8 @@ engcolorize(){
 			| sed "s/^noun/\\$bldblu[Noun]\\$txtrst/g"\
 			| sed "s/^adjective/\\$bldblu[Adj.]\\$txtrst/g"\
 			| sed "s/^adverb/\\$bldblu[Adv.]\\$txtrst/g"\
-			| sed "s/etymology:/\\$bldblu[Etymology]\\$txtrst/g"\
-			| sed "s/example:/\\$bldblu[Example]\\$txtrst/g"\
+			| sed "s/\[Etymology]/\\$bldblu[Etymology]\\$txtrst/g"\
+			| sed "s/\[Example]/\\$bldblu[Example]\\$txtrst/g"\
 			| sed "s/^\([0-9]\{1,2\}\.\)/\\$bldylw\1\\$txtrst/")"
 	done
 }
@@ -115,40 +118,54 @@ endic(){
 			| perl -pe 's/<.*?>//g'\
 			| grep -v '^$'
 	else
-		PRONOUNCIATION="$(xmllint --html --htmlout --xpath '//span[@class="pron ipapron"]' $SOURCE 2>/dev/null\
-			| perl -pe 's/<.*?>//g')\n"
+		QUOTE_ALL="\"$(xmllint --html --htmlout -xpath '//li[@class="example-sentence"]' $SOURCE 2>/dev/null\
+			| sed 's|</li>|"\n<>"|g'\
+			| perl -pe 's/<.*?>//g'\
+			| head -n2)"
 
-		RELATIVE="$(cat $SOURCE| xmllint --html --htmlout --xpath '//*[@class="tail-box tail-type-relf"]' - 2>/dev/null\
+		ETYMOLOGY_ALL="$(xmllint --html --htmlout --xpath '//section[@id="source-etymon2"]/div[@class="source-box oneClick-area"]' $SOURCE 2>/dev/null\
+			| perl -pe 's/<.*?>//g'\
+			| grep -v '^$')"
+
+		RELATIVE_ALL="$(cat $SOURCE| xmllint --html --htmlout --xpath '//*[@class="tail-box tail-type-relf"]' - 2>/dev/null\
 			| perl -pe 's/<.*?>//g'\
 			| grep -v '^$'\
 			| sed 's/Related forms Expand/[Related]/g'\
 			| sed 's/Derived Forms/[Derived]/g')"
 
-		DEFINITION="$(xmllint --html --htmlout --xpath '(//div[@class="source-data"])/div[@class="def-list"]' $SOURCE 2>/dev/null\
-			| perl -pe 's/<.*?>//g'\
-			| grep -v '^$'\
-			| tr '\n' '@'\
-			| sed 's|\([0-9]\{1,3\}\.\)@|\1) |g'\
-			| tr '@' '\n')"
+		for (( i=1; i<11; i++ )); do
+			PRONOUNCIATION[i]="$(xmllint --html --htmlout --xpath "(//header[@class=\"main-header oneClick-disabled head-big\"])[$i]/div[2]/div[1]" $SOURCE 2>/dev/null\
+				| tr -d '\n'\
+				| perl -pe 's/<.*?>//g'\
+				| grep -v '^$')"
 
-		ETYMOLOGY="etymology: $(xmllint --html --htmlout --xpath '//section[@id="source-etymon2"]/div[@class="source-box oneClick-area"]' $SOURCE 2>/dev/null\
-			| perl -pe 's/<.*?>//g'\
-			| grep -v '^$')"
+
+			ETYMOLOGY[i]="[Etymology]\n$(xmllint --html --htmlout --xpath "(//div[@class=\"tail-wrapper\"])[$i]/div[1]/div[@class=\"tail-content\"]" $SOURCE 2>/dev/null\
+				| perl -pe 's/<.*?>//g'\
+				| grep -v '^$')"
+
+			DEFINITION[i]="$(xmllint --html --htmlout --xpath "(//div[@class=\"source-data\"])[$i]/div[@class=\"def-list\"]" $SOURCE 2>/dev/null\
+				| perl -pe 's/<.*?>//g'\
+				| grep -v '^$'\
+				| tr '\n' '@'\
+				| sed 's|\([0-9]\{1,3\}\.\)@|\1) |g'\
+				| tr '@' '\n')"
 
 			# incline examples.
-		QUOTE="example: $(echo -e "$DEFINITION"\
-			| grep '\.).*:'\
-			| cut -d':' -f2\
-			| head -n5\
-			| grep "$@"\
-			| sed 's/$/"/; s/^/"/')\n"
-		# search quote from web.
-		QUOTE+="\"$(xmllint --html --htmlout -xpath '//li[@class="example-sentence"]' $SOURCE 2>/dev/null\
-			| sed 's|</li>|"\n<>"|g'\
-			| perl -pe 's/<.*?>//g'\
-			| head -n2)"
+			QUOTE[i]="[Example] $(echo -e "${DEFINITION[i]}"\
+				| grep '\.).*:'\
+				| cut -d':' -f2\
+				| head -n5\
+				| grep "$@"\
+				| sed 's/$/"/; s/^/"/')\n"
 
-		echo -e "$PRONOUNCIATION$DEFINITION\n$ETYMOLOGY\n$QUOTE\n$RELATIVE" > $TEMP
+			if [[ ${DEFINITION[i]} ]]; then
+				echo -e "--------------------[$i ]--------------------" >> $TEMP
+				echo -e "${PRONOUNCIATION[i]}\n${DEFINITION[i]}\n${ETYMOLOGY[i]}\n${QUOTE[i]}" >> $TEMP
+			fi
+		done
+
+		echo -e "$QUOTE_ALL\n$ETYMOLOGY_ALL\n$RELATIVE_ALL" >> $TEMP
 		cat $TEMP| fold -w${TERMGEOM[1]} -s | engcolorize| $PAGER	# more & fold conflict with escaping chars (real/logical length).
 
 	fi
@@ -166,7 +183,7 @@ jadic(){
 			[ -z "$kiji_body" ] && kiji_body=$(xmllint --html --htmlout --xpath "(//div[@class=\"Wkpja\"])[$i]/p" $SOURCE 2>/dev/null| perl -pe 's/<.*?>//g')
 			[ -z "$kiji_body" ] && kiji_body=$(xmllint --html --htmlout --xpath "(//div[@class=\"Nhgkt\"])[$i]" $SOURCE 2>/dev/null| perl -pe 's/<.*?>//g')
 
-			if [ ! -z "$kiji_body" ]; then
+			if [[  "$kiji_body" ]]; then
 				echo -e "━━━━━━━━━━━━━━━━━━━━[ $i ]━━━━━━━━━━━━━━━━━━━━" >> $TEMP
 				echo -e "$bldwht$kiji_head" >> $TEMP
 				echo -e "$txtrst$kiji_body" >> $TEMP
@@ -219,10 +236,6 @@ manpg(){
 # main program.
 ##############################
 
-tt(){
-	cat ~/t| less -RF
-}
-
 while (( $# != 0 )); do
 	case "$1" in
 		'-h'| '--help')
@@ -254,8 +267,8 @@ while read -e word; do
 			if [ -e "$TEMP" ]; then
 
 				if [ $MODE == 'En' ]; then
-					Anki_Front="$(engallower "$(linebreaker "$LAST\n$DEFINITION\n$QUOTE")" "$LAST")"
-					Anki_Back="$(linebreaker "$LAST\n$PRONOUNCIATION\n$ETYMOLOGY\n$RELATIVE")"
+					Anki_Front="$(engallower "$(linebreaker "$LAST\n${DEFINITION[word]}\n${QUOTE[word]}\n$QUOTE_ALL" )" "$LAST" )"
+					Anki_Back="$(linebreaker "$LAST\n${PRONOUNCIATION[word]}\n${ETYMOLOGY[word]}\n$ETYMOLOGY_ALL\n$RELATIVE_ALL")"
 					echo -e "engallows\tBasic\t1\t$Anki_Front\t$Anki_Back" >> $DICLIST
 
 				elif [ $MODE == 'Ja' ]; then
