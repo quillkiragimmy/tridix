@@ -83,7 +83,7 @@ engallower(){	# mask vowls. $1=sentence, $2=target word.
 	gallow_result=$(echo -e "$1"| sed "s/$2/$mask/Ig")
 
 		# for words ended with postfixs.
-	postfix=( 'e' 'y' 'ed' 'ing' 'ion' 'able' 'ical' 'ically' )
+	postfix=( 'e' 'y' 'ed' 'ing' 'ion' 'ity' 'able' 'ical' 'ment' 'ically' )
 	for (( i=0; i<${#postfix[*]}; i++ )); do
 		if [ "${2: -${#postfix[i]}}" == "${postfix[i]}" ]; then
 			gallow_result=$(echo -e "$gallow_result"| sed "s/${2:0: -${#postfix[i]}}/${mask:0: -${#postfix[i]}}/Ig")
@@ -124,7 +124,7 @@ endic(){
 			| sed 's/Related forms Expand/[Related]/g'\
 			| sed 's/Derived Forms/[Derived]/g')"
 
-		DEFINITION="$(xmllint --html --htmlout --xpath '(//div[@class="source-data"])[1]/div[@class="def-list"]' $SOURCE 2>/dev/null\
+		DEFINITION="$(xmllint --html --htmlout --xpath '(//div[@class="source-data"])/div[@class="def-list"]' $SOURCE 2>/dev/null\
 			| perl -pe 's/<.*?>//g'\
 			| grep -v '^$'\
 			| tr '\n' '@'\
@@ -254,7 +254,7 @@ while read -e word; do
 			if [ -e "$TEMP" ]; then
 
 				if [ $MODE == 'En' ]; then
-					Anki_Front="$(engallower "$(linebreaker "$DEFINITION\n$QUOTE")" "$LAST") "
+					Anki_Front="$(engallower "$(linebreaker "$LAST\n$DEFINITION\n$QUOTE")" "$LAST")"
 					Anki_Back="$(linebreaker "$LAST\n$PRONOUNCIATION\n$ETYMOLOGY\n$RELATIVE")"
 					echo -e "engallows\tBasic\t1\t$Anki_Front\t$Anki_Back" >> $DICLIST
 
