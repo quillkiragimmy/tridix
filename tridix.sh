@@ -148,22 +148,22 @@ jagallower(){
 	kana='あいうえおかきくけこがぎぐげごさしすせそざじずぜぞたちつてとだぢづでどなにぬねのはひふへほばびぶべぼぱぴぷぺぽまみむめもやゆよらりるれろわんをアイウエオカキクケコガギグゲゴサシスセソザジズゼゾタチツテトダヂヅデドナニヌネノハヒフヘホバビブベボパピプペポマミムメモヤユヨラリルレロワンヲ'
 	chisaikana='ゃゅょャュョ'
 
-	orig=$(echo $2| tr -d ' ')
-
 	mask=$(echo "$2"| sed "s/[$kana]/－/g; s/[$chisaikana]/_/g")
 	(( ${#2} < 5 )) && mask="${mask:0: -1}${2: -1}"
 	(( ${#2} >= 5 )) && mask="${2:0:1}${mask:1: -1}${2: -1}"
-	mask=$(echo $mask| tr -d ' ')
 
-	echo -e "$mask"
+	gallow_result=$(echo -e "$1"| sed "s/$2/$mask/g")
+	stem=$(echo "$2"| tr -d ' '| sed 's/・.*$//g; s/.$//')
 
+	echo -e "$gallow_result"| perl -pe "s/\s$stem.*?(・.*?)\s/ 〜\1 /g"
 
 }
 
 jadic(){
-	jdicilst=( 'NetDicBody' 'Ingdj' 'Wkpja' 'Nhgkt' )
-	curl http://www.weblio.jp/content/"$@" -s > $SOURCE
+	jdicilst=( 'NetDicBody' 'Ingdj' 'Wkpja' 'Jajcw' 'Jtnhj' 'Nhgkt' )
+	curl http://www.weblio.jp/content/"$@" -sL > $SOURCE
 	if [ "$(cat $SOURCE| fgrep '見出し語は見つかりません')" == '' ]; then	# for error fetching.
+
 		for (( i=1, index=1; i<11; i++ )); do
 			kiji=$(xmllint --html --htmlout --xpath "(//div[@class=\"kiji\"])[$i]" $SOURCE 2>/dev/null)
 			[[ ! "$kiji" ]] && break
@@ -181,7 +181,7 @@ jadic(){
 								 | sed 's/<div style="float:left/\n</g'\
 								 | perl -pe 's/<.*?>//g')
 
-							 ETYMOLOGY[index]=$(echo ${kiji_body[index]}| perl -pe 's/.*(〔.*?〕).*/\1/g')
+							 ETYMOLOGY[index]=$(echo ${kiji_body[index]}| fgrep '〔'| perl -pe 's/.*(〔.*?〕).*/\1/g')
 							 DEFINITION[index]=$(echo ${kiji_body[index]}| perl -pe 's/〔.*?〕//g')
 
 							 PRONOUNCIATION[index]=$(xmllint --html --htmlout --xpath "(//h2[@class=\"midashigo\"])[$j]/b[1]" $SOURCE 2>/dev/null\
@@ -207,6 +207,7 @@ jadic(){
 						kiji_body[index]=$(xmllint --html --htmlout --xpath "(//div[@class=\"kiji\"])[$i]/div[1]" $SOURCE 2>/dev/null\
 							| perl -pe 's/<.*?>//g'\
 							| grep -v '^$')
+
 						DEFINITION[index]=${kiji_body[index]}
 						WRITTENFORM[index]=$(xmllint --html --htmlout --xpath "(//h2[@class=\"midashigo\"])[$i]" $SOURCE 2>/dev/null| perl -pe 's/<.*?>//g')
 						
@@ -220,7 +221,7 @@ jadic(){
 			done
 		done
 
-		for (( i=1; i<${#DEFINITION[@]}+1 ; i++ )); do
+		for (( i=1; i<index; i++ )); do
 			echo -e "____________________[ $i ]____________________" >> $TEMP
 			echo -e "$bldwht${kiji_head[i]}$txtrst" >> $TEMP
 			echo -e "$txtrst${kiji_body[i]}" >> $TEMP
@@ -318,13 +319,13 @@ while read -e word; do
 						| sed 's/Related forms Expand/[Related]/g'\
 						| sed 's/Derived Forms/[Derived]/g')"
 
-					Anki_Front="$(engallower "$(linebreaker "$LAST\n${DEFINITION[word]}\n${QUOTE[word]}\n$quote_all" )" "$LAST" )"
-					Anki_Back="$(linebreaker "$LAST\n${PRONOUNCIATION[word]}\n${ETYMOLOGY[word]}\n$etymology_all\n$relative_all")"
+					Anki_Front=$(engallower "$(linebreaker "$LAST\n${DEFINITION[word]}\n${QUOTE[word]}\n$quote_all" )" "$LAST" )
+					Anki_Back=$(linebreaker "$LAST\n${PRONOUNCIATION[word]}\n${ETYMOLOGY[word]}\n$etymology_all\n$relative_all")
 					echo -e "engallows\tBasic\t1\t$Anki_Front\t$Anki_Back" >> $DICLIST
 
 				elif [ $MODE == 'Ja' ]; then
-					Anki_Front=$(linebreaker "${PRONOUNCIATION[word]}<br>${DEFINITION[word]}<br>${QUOTE[word]}" )
-					Anki_Back=$(linebreaker "${WRITTENFORM[word]}<br>${PRONOUNCIATION[word]}<br>${ETYMOLOGY[word]}" )
+					Anki_Front=$(jagallower "$(linebreaker "${PRONOUNCIATION[word]}<br>${DEFINITION[word]}<br>${QUOTE[word]}" )" "${PRONOUNCIATION[word]}" )
+					Anki_Back=$(linebreaker "${WRITTENFORM[word]}<br>${PRONOUNCIATION[word]}<br>${ETYMOLOGY[word]}<br>${DEFINITION[word]}" )
 					echo -e "日本語謎々\tBasic\t1\t$Anki_Front\t$Anki_Back" >> $DICLIST
 					LAST="${WRITTENFORM[word]}"
 
