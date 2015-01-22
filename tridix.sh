@@ -79,7 +79,7 @@ linebreaker(){	# newline to break.
 }
 
 engallower(){	# mask vowls. $1=sentence, $2=target word.
-	mask=$(echo "$2"| sed 's/[aeiou][nmr]/__/Ig; s/\([cs]\)[kh]/\1_/Ig; s/\([^aeiou]\)[^aeiou]/\1_/Ig; s/[aeiouy]/_/Ig')
+	mask=$(echo "$2"| sed 's/[aeiou][nmr]/__/Ig; s/\([cs]\)[kh]/\1_/Ig; s/\([^aeiou ]\)[^aeiou ]/\1_/Ig; s/[aeiouy]/_/Ig')
 	mask="${2:0:1}${mask:1: -1}${2: -1}"
 	gallow_result=$(echo -e "$1"| sed "s/$2/$mask/Ig")
 
@@ -155,12 +155,12 @@ jagallower(){	# $1=definition, $2=pronounciation, $3=writtenform.
 	gallow_result=$(echo -e "$1"| sed "s/$2/$mask/g")
 	stem=$(echo "$2"| tr -d ' '| sed 's/・.*$//g; s/.$//')
 
-	echo -e "$gallow_result"| perl -pe "s/\s$stem.*?(・.*?)\s/ 〜\1 /g; s/$3/〜/g"
+	echo -e "$gallow_result"| perl -pe "s/\s$stem.*?(・.*?)\s/ 〜\1 /g; s/$3/【 】/g"
 
 }
 
 jadic(){
-	jdicilst=( 'NetDicBody' 'Ingdj' 'Wkpja' 'Jajcw' 'Jtnhj' 'Nhgkt' )
+	jdicilst=( 'NetDicBody' 'Ingdj' 'Wkpja' 'Jajcw' 'Jtnhj' 'Nhgkt' 'Kyktb' 'Osaka' )
 	curl http://www.weblio.jp/content/"$@" -sL > $SOURCE
 	if [ "$(cat $SOURCE| fgrep '見出し語は見つかりません')" == '' ]; then	# for error fetching.
 
