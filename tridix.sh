@@ -30,7 +30,7 @@ bldwht='\e[1;37m' # White
 ##############################
 DICLIST=$HOME/tridixlist.list
 DICHIST="$DICLIST"_history
-MODE='Ja'	#en,ja,la.
+MODE='En'	#en,ja,la.
 TERMGEOM=( "$(tput lines)" "$(tput cols)" )
 PAGER='more -df'
 JPAGER='more -d' # pager for Asia font.
@@ -144,7 +144,7 @@ endic(){
 	fi
 }
 
-jagallower(){
+jagallower(){	# $1=definition, $2=pronounciation, $3=writtenform.
 	kana='あいうえおかきくけこがぎぐげごさしすせそざじずぜぞたちつてとだぢづでどなにぬねのはひふへほばびぶべぼぱぴぷぺぽまみむめもやゆよらりるれろわんをアイウエオカキクケコガギグゲゴサシスセソザジズゼゾタチツテトダヂヅデドナニヌネノハヒフヘホバビブベボパピプペポマミムメモヤユヨラリルレロワンヲ'
 	chisaikana='ゃゅょャュョ'
 
@@ -155,7 +155,7 @@ jagallower(){
 	gallow_result=$(echo -e "$1"| sed "s/$2/$mask/g")
 	stem=$(echo "$2"| tr -d ' '| sed 's/・.*$//g; s/.$//')
 
-	echo -e "$gallow_result"| perl -pe "s/\s$stem.*?(・.*?)\s/ 〜\1 /g"
+	echo -e "$gallow_result"| perl -pe "s/\s$stem.*?(・.*?)\s/ 〜\1 /g; s/$3/〜/g"
 
 }
 
@@ -203,20 +203,24 @@ jadic(){
 						 done
 					
 					else	# other Jishou.
-						kiji_head[index]=$(xmllint --html --htmlout --xpath "(//div[@class=\"kiji\"])[$i]/h2" $SOURCE 2>/dev/null| perl -pe 's/<.*?>//g')
-						kiji_body[index]=$(xmllint --html --htmlout --xpath "(//div[@class=\"kiji\"])[$i]/div[1]" $SOURCE 2>/dev/null\
-							| perl -pe 's/<.*?>//g'\
-							| grep -v '^$')
 
-						DEFINITION[index]=${kiji_body[index]}
-						WRITTENFORM[index]=$(xmllint --html --htmlout --xpath "(//h2[@class=\"midashigo\"])[$i]" $SOURCE 2>/dev/null| perl -pe 's/<.*?>//g')
-						
-						PRONOUNCIATION[index]=$(echo "${DEFINITION[index]}"| grep '読み方：'| sed 's/.*：//'| tr -d ' ') 
-						[[ ! ${PRONOUNCIATION[index]} ]] && PRONOUNCIATION[index]="$@"
+						for (( j=1; j<11; j++ )); do
+							kiji_head[index]=$(xmllint --html --htmlout --xpath "((//div[@class=\"kiji\"])[$i]/h2[@class=\"midashigo\"])[$j]" $SOURCE 2>/dev/null| perl -pe 's/<.*?>//g')
+							[[ ! ${kiji_head[index]} ]] && break
 
-						(( index++ ))
+							kiji_body[index]=$(xmllint --html --htmlout --xpath "(//div[@class=\"kiji\"])[$i]/div[$j]" $SOURCE 2>/dev/null\
+								| perl -pe 's/<.*?>//g'\
+								| grep -v '^$')
+
+							DEFINITION[index]=${kiji_body[index]}
+							WRITTENFORM[index]=${kiji_head[index]}
+
+							PRONOUNCIATION[index]=$(echo "${DEFINITION[index]}"| grep '読み方：'| sed 's/.*：//'| tr -d ' ') 
+							[[ ! ${PRONOUNCIATION[index]} ]] && PRONOUNCIATION[index]="$@"
+
+							(( index++ ))
+						done
 					fi
-
 				fi
 			done
 		done
@@ -324,7 +328,7 @@ while read -e word; do
 					echo -e "engallows\tBasic\t1\t$Anki_Front\t$Anki_Back" >> $DICLIST
 
 				elif [ $MODE == 'Ja' ]; then
-					Anki_Front=$(jagallower "$(linebreaker "${PRONOUNCIATION[word]}<br>${DEFINITION[word]}<br>${QUOTE[word]}" )" "${PRONOUNCIATION[word]}" )
+					Anki_Front=$(jagallower "$(linebreaker "${PRONOUNCIATION[word]}<br>${DEFINITION[word]}<br>${QUOTE[word]}" )" "${PRONOUNCIATION[word]}" "${WRITTENFORM[word]}" )
 					Anki_Back=$(linebreaker "${WRITTENFORM[word]}<br>${PRONOUNCIATION[word]}<br>${ETYMOLOGY[word]}<br>${DEFINITION[word]}" )
 					echo -e "日本語謎々\tBasic\t1\t$Anki_Front\t$Anki_Back" >> $DICLIST
 					LAST="${WRITTENFORM[word]}"
