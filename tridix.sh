@@ -37,7 +37,6 @@ JPAGER='more -d' # pager for Asia font.
 SOURCE=''
 TEMP=''
 LAST=''
-BARS=''       # used by j/ldic.
 
 PRONOUNCIATION=('')
 WRITTENFORM=('')
@@ -146,7 +145,7 @@ endic(){
 
 jagallower(){	# $1=definition, $2=pronounciation, $3=writtenform.
 	kana='あいうえおかきくけこがぎぐげごさしすせそざじずぜぞたちつてとだぢづでどなにぬねのはひふへほばびぶべぼぱぴぷぺぽまみむめもやゆよらりるれろわんをアイウエオカキクケコガギグゲゴサシスセソザジズゼゾタチツテトダヂヅデドナニヌネノハヒフヘホバビブベボパピプペポマミムメモヤユヨラリルレロワンヲ'
-	chisaikana='ゃゅょャュョ'
+	chisaikana='ゃゅょャュョァィゥェォ'
 
 	mask=$(echo "$2"| sed "s/[$kana]/－/g; s/[$chisaikana]/_/g")
 	(( ${#2} < 5 )) && mask="${mask:0: -1}${2: -1}"
@@ -240,20 +239,47 @@ jadic(){
 
 }
 
+lagallower(){
+	mask=$(echo "$1"| sed 's/[aeiou][nmr]/__/Ig; s/\([cs]\)[kh]/\1_/Ig; s/\([^aeiou ]\)[^aeiou ]/\1_/Ig; s/[aeiouy]/_/Ig')
+	mask="${1:0:1}${mask:1: -1}${1: -1}"
+	echo "$mask"
+}
+
 ladic(){
-	echo "$@"| words| tr -d '\r' > $SOURCE
-	orig=$(cat $SOURCE| grep -n '=>$'| cut -d':' -f1)
-	end=$(cat $SOURCE| grep -n '=>Raised'| cut -d':' -f1)
-	cat $SOURCE| sed -n "$((orig+1)), $((end-1)) p"\
+	src=$(echo "$@"| words| tr -d '\r')
+	orig=$(echo "$src"| grep -n '=>$'| cut -d':' -f1)
+	end=$(echo "$src"| grep -n '=>Raised'| cut -d':' -f1)
+	echo "$src" | sed -n "$((orig+1)), $((end-1)) p"\
 		| grep -v '^$'\
-		| tr '\r' ' '\
+		| tr '\r' '\n'\
+		| sed 's/\s\{2,\}/ /g'\
 		| fgrep -v 'RETURN/ENTER'\
-		| fgrep -v 'Unexpected exception'\
-		| sed 's/\(;.*\)$/\1\n━━━━━━━━━━━━━/' >> $TEMP
+		| fgrep -v 'Unexpected exception' > $SOURCE
 
-	BARS=( '1' $(fgrep -n "━━━━━━━━━━━━━" $TEMP| cut -d':' -f1) '$' )
+	last_is_def=false
+	index=0
+	while read line; do
+	if echo "$line"| grep -q ';'; then
+			if ! $last_is_def; then
+				(( index++ ))
+			fi
+			DEFINITION[index]+="$line\n"
+			last_is_def=true
+		else
+			WRITTENFORM[index+1]+="$line\n"
+			last_is_def=false
+		fi
+	done < $SOURCE
+	(( index++ ))
 
-	cat $TEMP| fold -w${TERMGEOM[1]} -s| $PAGER
+	for (( i=1; i<index; i++ )); do
+		echo -e "____________________[ $i ]____________________" >> $TEMP
+		echo -e "$bldwht${DEFINITION[i]}" >> $TEMP
+		echo -e "$txtgrn${WRITTENFORM[i]}$txtrst" >> $TEMP
+	done
+
+	[ -e $TEMP ] && ( cat $TEMP| $PAGER )
+
 
 }
 
@@ -337,15 +363,9 @@ while read -e word; do
 					LAST="${WRITTENFORM[word]}"
 
 				elif [ $MODE == 'La' ]; then
-					slot=$(cat $TEMP\
-						| sed -n "${BARS[word-1]}, ${BARS[word]} p"\
-						| grep -v '━'\
-						| sed 's/\s\{1,\}/ /g'\
-						| sed 's/$/<br>/g'\
-						| tr '\n' ' ')
-
-					DEFINITION="$(echo $slot| sed 's/<br>/\n/g'| fgrep '[')"
-					echo -e "VOCABULAE\tBasic\t1\t$LAST<br>$DEFINITION\t$(echo $slot)" >> $DICLIST
+					Anki_Front=$(linebreaker "$(lagallower $LAST)\n${DEFINITION[word]}")
+					Anki_Back=$(linebreaker "$LAST\n${WRITTENFORM[word]}\n")
+					echo -e "AENIGMAE.LATINAE\tBasic\t1\t$Anki_Front\t$Anki_Back" >> $DICLIST
 
 				fi 
 				echo -e "$(echo $Anki_Front| sed 's/<br>/\n/g')"
@@ -410,6 +430,7 @@ while read -e word; do
 			QUOTE=('')
 			ETYMOLOGY=('')
 			RELATIVE=('')
+			WRITTENFORM=('')
 
 			Anki_Front=''
 			Anki_Back=''
