@@ -162,8 +162,10 @@ jagallower(){	# $1=definition, $2=pronounciation, $3=writtenform.
 jadic(){
 	jdicilst=( 'NetDicBody' 'Ingdj' 'Wkpja' 'Jajcw' 'Jtnhj' 'Nhgkt' 'Kyktb' 'Osaka' )
 	curl http://www.weblio.jp/content/"$@" -sL > $SOURCE
-	if [ "$(cat $SOURCE| fgrep '見出し語は見つかりません')" == '' ]; then	# for error fetching.
+	if [[ "$(cat $SOURCE| fgrep '見出し語は見つかりません')" ]]; then	# for error fetching.
+		xmllint --html --htmlout -xpath '//div[@class="nrCntNbKw"]' $SOURCE 2>/dev/null | perl -pe 's/<.*?>//g'
 
+	else
 		for (( i=1, index=1; i<11; i++ )); do
 			kiji=$(xmllint --html --htmlout --xpath "(//div[@class=\"kiji\"])[$i]" $SOURCE 2>/dev/null)
 			[[ ! "$kiji" ]] && break
@@ -197,7 +199,7 @@ jadic(){
 
 							 # find kanji(if any).
 							 WRITTENFORM[index]="$@"
-							 [[ $(echo ${kiji_head[index]}| fgrep '【') ]] && WRITTENFORM[index]=$(echo ${kiji_head[index]}| perl -pe 's/.*?(【.*?】).*/\1/')
+							 [[ $(echo ${kiji_head[index]}| fgrep '【') ]] && WRITTENFORM[index]=$(echo ${kiji_head[index]}| perl -pe 's/.*?【(.*?)】.*/\1/')
 
 							 (( index++ ))
 						 done
@@ -232,6 +234,7 @@ jadic(){
 		done
 
 		[ -e $TEMP ] && ( cat $TEMP| $JPAGER )
+
 
 	fi
 
