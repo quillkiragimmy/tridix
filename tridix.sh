@@ -240,9 +240,9 @@ jadic(){
 }
 
 lagallower(){
-	mask=$(echo "$1"| sed 's/[aeiou][nmr]/__/Ig; s/\([cs]\)[kh]/\1_/Ig; s/\([^aeiou ]\)[^aeiou ]/\1_/Ig; s/[aeiouy]/_/Ig')
-	mask="${1:0:1}${mask:1: -1}${1: -1}"
-	echo "$mask"
+	mask=$(echo "$2"| sed 's/[aeiou][nmr]/__/Ig; s/\([cs]\)[kh]/\1_/Ig; s/\([^aeiou ]\)[^aeiou ]/\1_/Ig; s/[aeiouy]/_/Ig')
+	mask="${2:0:1}${mask:1: -1}${2: -1}"
+	echo -e "$1"| sed "s/$2/$mask/g"
 }
 
 ladic(){
@@ -331,7 +331,7 @@ while read -e word; do
 	TERMGEOM=( "$(tput lines)" "$(tput cols)" )
 
 	case "$word" in
-		''|1|2|3|4|5|6|7|8|9)
+		''|1|2|3|4|5|6|7|8|9|10)
 			if [ "$word" == '' ]; then word='1'; fi # enlist first word.
 
 			if [ -e "$TEMP" ]; then
@@ -363,7 +363,7 @@ while read -e word; do
 					LAST="${WRITTENFORM[word]}"
 
 				elif [ $MODE == 'La' ]; then
-					Anki_Front=$(linebreaker "$(lagallower $LAST)\n${DEFINITION[word]}")
+					Anki_Front=$(lagallower "$(linebreaker "$LAST\n${DEFINITION[word]}")" "$LAST")
 					Anki_Back=$(linebreaker "$LAST\n${WRITTENFORM[word]}\n")
 					echo -e "AENIGMAE.LATINAE\tBasic\t1\t$Anki_Front\t$Anki_Back" >> $DICLIST
 
