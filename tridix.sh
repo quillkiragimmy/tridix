@@ -83,7 +83,7 @@ engallower(){	# mask vowls. $1=sentence, $2=target word.
 	gallow_result=$(echo -e "$1"| sed "s/$2/$mask/Ig")
 
 		# for words ended with postfixs.
-	postfix=( 'e' 'y' 'ed' 'ing' 'ion' 'ity' 'able' 'ical' 'ment' 'ically' )
+	postfix=( 'e' 'y' 'ed' 'er' 'or' 'ing' 'ion' 'ity' 'able' 'ical' 'ment' 'ically' )
 	for (( i=0; i<${#postfix[*]}; i++ )); do
 		if [ "${2: -${#postfix[i]}}" == "${postfix[i]}" ]; then
 			gallow_result=$(echo -e "$gallow_result"| sed "s/${2:0: -${#postfix[i]}}/${mask:0: -${#postfix[i]}}/Ig")
@@ -409,10 +409,11 @@ while read -e word; do
 			;&
 
 		ls)
-			listtmp="$(cat $DICHIST\
+			listtmp="$(cat -n $DICHIST\
 				| sed s/Ja/\\$bldwht/ \
 				| sed s/En/\\$bldylw/ \
-				| sed s/La/\\$bldgrn/ ) $txtrst"
+				| sed s/La/\\$bldgrn/ \
+				| sed s/$/\\$txtrst/) $txtrst"
 
 				echo -e "$listtmp" | more -d
 			;;
