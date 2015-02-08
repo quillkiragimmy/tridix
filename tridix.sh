@@ -186,7 +186,8 @@ jadic(){
 							 DEFINITION[index]=$(echo ${kiji_body[index]}| perl -pe 's/〔.*?〕//g')
 
 							 PRONOUNCIATION[index]=$(xmllint --html --htmlout --xpath "(//h2[@class=\"midashigo\"])[$j]/b[1]" $SOURCE 2>/dev/null\
-								 | perl -pe 's/<.*?>//g')
+								 | perl -pe 's/<.*?>//g'\
+								 | sed 's/\s//g')
 
 							 QUOTE[index]=$(echo ${kiji_body[index]}\
 								 | perl -pe 's/<.*?>//g'\
@@ -242,7 +243,7 @@ jadic(){
 lagallower(){
 	mask=$(echo "$2"| sed 's/[aeiou][nmr]/__/Ig; s/\([cs]\)[kh]/\1_/Ig; s/\([^aeiou ]\)[^aeiou ]/\1_/Ig; s/[aeiouy]/_/Ig')
 	mask="${2:0:1}${mask:1: -1}${2: -1}"
-	echo -e "$1"| sed "s/$2/$mask/g"
+	echo -e "$1"| tr -d '.'| sed "s/$2/$mask/g"
 }
 
 ladic(){
@@ -363,7 +364,7 @@ while read -e word; do
 					LAST="${WRITTENFORM[word]}"
 
 				elif [ $MODE == 'La' ]; then
-					Anki_Front=$(lagallower "$(linebreaker "$LAST\n${DEFINITION[word]}")" "$LAST")
+					Anki_Front=$(lagallower "$(linebreaker "$LAST\n${DEFINITION[word]}<br>${WRITTENFORM[word]}")" "$LAST")
 					Anki_Back=$(linebreaker "$LAST\n${WRITTENFORM[word]}\n")
 					echo -e "AENIGMAE.LATINAE\tBasic\t1\t$Anki_Front\t$Anki_Back" >> $DICLIST
 
