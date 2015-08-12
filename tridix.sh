@@ -38,6 +38,7 @@ SOURCE=''
 TEMP=''
 LAST=''
 
+WORD=('')
 PRONOUNCIATION=('')
 WRITTENFORM=('')
 DEFINITION=('')
@@ -106,6 +107,9 @@ endic(){
 	else
 
 		for (( i=1; i<11; i++ )); do
+			WORD[i]="$(xmllint --html --htmlout --xpath "(//*[@class=\"head-entry\"])[$i]/span[@class=\"me\"]" $SOURCE 2>/dev/null\
+				| perl -pe 's/<.*?>//g')"
+
 			PRONOUNCIATION[i]="$(xmllint --html --htmlout --xpath "(//header[@class=\"main-header oneClick-disabled head-big\"])[$i]/div[2]/div[1]" $SOURCE 2>/dev/null\
 				| tr -d '\n'\
 				| perl -pe 's/<.*?>//g'\
@@ -353,8 +357,8 @@ while read -e word; do
 						| sed 's/Related forms Expand/[Related]/g'\
 						| sed 's/Derived Forms/[Derived]/g')"
 
-					Anki_Front=$(engallower "$(linebreaker "$LAST\n${DEFINITION[word]}\n${QUOTE[word]}\n$quote_all" )" "$LAST" )
-					Anki_Back=$(linebreaker "$LAST\n${PRONOUNCIATION[word]}\n${ETYMOLOGY[word]}\n$etymology_all\n$relative_all")
+					Anki_Front=$(engallower "$(linebreaker "${WORD[word]}\n${DEFINITION[word]}\n${QUOTE[word]}\n$quote_all" )" "${WORD[word]}" )
+					Anki_Back=$(linebreaker "${WORD[word]}\n${PRONOUNCIATION[word]}\n${ETYMOLOGY[word]}\n$etymology_all\n$relative_all")
 					echo -e "engallows\tBasic\t1\t$Anki_Front\t$Anki_Back" >> $DICLIST
 
 				elif [ $MODE == 'Ja' ]; then
