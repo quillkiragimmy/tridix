@@ -110,7 +110,7 @@ endic(){
 			WORD[i]="$(xmllint --html --htmlout --xpath "(//*[@class=\"head-entry\"])[$i]/span[@class=\"me\"]" $SOURCE 2>/dev/null\
 				| perl -pe 's/<.*?>//g')"
 
-			PRONOUNCIATION[i]="$(xmllint --html --htmlout --xpath "(//header[@class=\"main-header oneClick-disabled head-big\"])[$i]/div[2]/div[1]" $SOURCE 2>/dev/null\
+			PRONOUNCIATION[i]="$(xmllint --html --htmlout --xpath "(//header[@class=\"main-header oneClick-disabled cts-disabled head-big\"])[$i]/div[2]/div[1]" $SOURCE 2>/dev/null\
 				| tr -d '\n'\
 				| perl -pe 's/<.*?>//g'\
 				| grep -v '^$')"
@@ -319,6 +319,7 @@ while (( $# != 0 )); do
 			;;
 		'-p'| '--pagerless')
 			PAGER='cat'
+			JPAGER='cat'
 			;;
 		'--list')
 			shift
