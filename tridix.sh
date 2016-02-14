@@ -75,7 +75,8 @@ engcolorize(){
 }
 
 linebreaker(){	# newline to break.
-	echo -e "$@"| sed 's/$/ <br>/g'| tr -d '\n'
+	# includes some bind_patch for jadic.
+	echo -e "$@"| sed 's/$/ <br>/g'| sed 's/[・▼▽]//g'| tr -d '\n'
 }
 
 engallower(){	# mask vowls. $1=sentence, $2=target word.
@@ -115,6 +116,8 @@ endic(){
 				| perl -pe 's/<.*?>//g'\
 				| grep -v '^$')"
 
+
+			WRITTENFORM[i]="$(echo ${WORD[i]}| sed 's/\(.\)/\1 /g')"
 
 			ETYMOLOGY[i]="[Etymology]\n$(xmllint --html --htmlout --xpath "(//div[@class=\"tail-wrapper\"])[$i]/div[1]/div[@class=\"tail-content\"]" $SOURCE 2>/dev/null\
 				| perl -pe 's/<.*?>//g'\
@@ -358,19 +361,23 @@ while read -e word; do
 						| sed 's/Related forms Expand/[Related]/g'\
 						| sed 's/Derived Forms/[Derived]/g')"
 
-					Anki_Front=$(engallower "$(linebreaker "${WORD[word]}\n${DEFINITION[word]}\n${QUOTE[word]}\n$quote_all" )" "${WORD[word]}" )
-					Anki_Back=$(linebreaker "${WORD[word]}\n${PRONOUNCIATION[word]}\n${ETYMOLOGY[word]}\n$etymology_all\n$relative_all")
+					Anki_Front=$(linebreaker "${WORD[word]}\n, ${WRITTENFORM[word]}\n${QUOTE[word]}\n$quote_all\n$relative_all\n${ETYMOLOGY[word]}\n$etymology_all" )
+					Anki_Back=$(linebreaker "${WORD[word]}\n, ${WRITTENFORM[word]}\n${DEFINITION[word]}\n")
 					echo -e "engallows\tBasic\t1\t$Anki_Front\t$Anki_Back" >> $DICLIST
 
 				elif [ $MODE == 'Ja' ]; then
-					Anki_Front=$(jagallower "$(linebreaker "${PRONOUNCIATION[word]}<br>${DEFINITION[word]}<br>${QUOTE[word]}" )" "${PRONOUNCIATION[word]}" "${WRITTENFORM[word]}" )
-					Anki_Back=$(linebreaker "${WRITTENFORM[word]}<br>${PRONOUNCIATION[word]}<br>${ETYMOLOGY[word]}<br>${DEFINITION[word]}" )
+					Anki_Front=$(linebreaker "${PRONOUNCIATION[word]}<br>${QUOTE[word]}<br>${ETYMOLOGY[word]}")
+					Anki_Back=$(linebreaker "${PRONOUNCIATION[word]}<br>, ${WRITTENFORM[word]}<br>${DEFINITION[word]}")
+						# bug fixes for jadic.
+					Anki_Front=$(echo $Anki_Front| sed "s/－/${PRONOUNCIATION[word]}/g")
+					Anki_Back=$(echo $Anki_Back| sed "s/－/${PRONOUNCIATION[word]}/g")
 					echo -e "日本語謎々\tBasic\t1\t$Anki_Front\t$Anki_Back" >> $DICLIST
 					LAST="${WRITTENFORM[word]}"
 
 				elif [ $MODE == 'La' ]; then
-					Anki_Front=$(lagallower "$(linebreaker "$LAST\n${DEFINITION[word]}<br>${WRITTENFORM[word]}")" "$LAST")
-					Anki_Back=$(linebreaker "$LAST\n${WRITTENFORM[word]}\n")
+					PRONOUNCIATION[word]="$(echo $LAST| sed 's/\(.\)/\1 /g')"
+					Anki_Front=$(linebreaker "$LAST\n, ${PRONOUNCIATION[word]}\n${WRITTENFORM[word]}")
+					Anki_Back=$(linebreaker "$LAST\n, ${PRONOUNCIATION[word]}\n${DEFINITION[word]}<br>")
 					echo -e "AENIGMAE.LATINAE\tBasic\t1\t$Anki_Front\t$Anki_Back" >> $DICLIST
 
 				fi 
