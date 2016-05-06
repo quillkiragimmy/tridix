@@ -76,7 +76,7 @@ engcolorize(){
 
 linebreaker(){	# newline to break.
 	# includes some bind_patch for jadic.
-	echo -e "$@"| sed 's/$/ <br>/g'| sed 's/[・▼▽]//g'| sed 's/＝/\//g'| perl -pe 's/（.*?）//g'| tr -d '\n'
+	echo -e "$@"| sed 's/$/ <br>/g'| sed 's/[・▼▽]//g'| sed 's|＝|/|g'| sed 's/，/、/g'| perl -pe 's/（.*?）//g'| tr -d '\n'
 }
 
 engallower(){	# mask vowls. $1=sentence, $2=target word.
@@ -346,10 +346,10 @@ while read -e word; do
 			if [ -e "$TEMP" ]; then
 
 				if [ $MODE == 'En' ]; then
-					quote_all="\"$(xmllint --html --htmlout -xpath '//li[@class="example-sentence"]' $SOURCE 2>/dev/null\
-						| sed 's|</li>|"\n<>"|g'\
+					quote_all="$(xmllint --html --htmlout -xpath '//p[@class="partner-example-text"]' $SOURCE 2>/dev/null\
 						| perl -pe 's/<.*?>//g'\
-						| head -n2)"
+						| perl -pe 's/(^.*$)/"$1"/g'\
+						| head -n5)"
 
 					etymology_all="$(xmllint --html --htmlout --xpath '//section[@id="source-etymon2"]/div[@class="source-box oneClick-area"]' $SOURCE 2>/dev/null\
 						| perl -pe 's/<.*?>//g'\
@@ -361,14 +361,22 @@ while read -e word; do
 						| sed 's/Related forms Expand/[Related]/g'\
 						| sed 's/Derived Forms/[Derived]/g')"
 
-					Anki_Front=$(linebreaker "${WORD[word]}\n, ${WRITTENFORM[word]}\n${QUOTE[word]}\n$quote_all\n$relative_all\n${ETYMOLOGY[word]}\n$etymology_all" )
-					Anki_Back=$(linebreaker "${WORD[word]}\n${DEFINITION[word]}\n")
+					Anki_Front=$(linebreaker "${WORD[word]}, \n${WRITTENFORM[word]}, \n${QUOTE[word]}\n$quote_all\n$relative_all\n${ETYMOLOGY[word]}\n$etymology_all" )
+					Anki_Back=$(linebreaker "${WORD[word]}, \n${DEFINITION[word]}\n")
 					echo -e "engallows\tBasic\t1\t$Anki_Front\t$Anki_Back" >> $DICLIST
 
 				elif [ $MODE == 'Ja' ]; then
 					WRITTENFORM[word]="$(echo ${WRITTENFORM[word]}| sed 's/・/, /g')"
-					Anki_Front=$(linebreaker "${PRONOUNCIATION[word]}<br>, ${WRITTENFORM[word]}<br>${QUOTE[word]}<br>${ETYMOLOGY[word]}")
-					Anki_Back=$(linebreaker "${PRONOUNCIATION[word]}<br>, ${WRITTENFORM[word]}<br>${DEFINITION[word]}")
+					 # fetch sentences.
+					QUOTE[word]="$(curl -sL "http://yourei.jp/$LAST"\
+						| xmllint --html --htmlout --xpath '//span[@class="the-sentence"]' - 2>/dev/null\
+						| perl -pe 's|<rt>.*?</rt>||g'\
+						| perl -pe 's|</span>|\n|g'\
+						| perl -pe 's/<.*?>//g'\
+						| head -n4)\n${QUOTE[word]}"
+
+					Anki_Front=$(linebreaker "${PRONOUNCIATION[word]}<br>, ${WRITTENFORM[word]}, <br>${QUOTE[word]}<br>${ETYMOLOGY[word]}")
+					Anki_Back=$(linebreaker "${PRONOUNCIATION[word]}<br>, ${WRITTENFORM[word]}, <br>${DEFINITION[word]}")
 						# bug fixes for jadic.
 					Anki_Front=$(echo $Anki_Front| sed "s/－/${PRONOUNCIATION[word]}/g")
 					Anki_Back=$(echo $Anki_Back| sed "s/－/${PRONOUNCIATION[word]}/g")
@@ -380,14 +388,17 @@ while read -e word; do
 					PRONOUNCIATION[word]="$(echo $LAST| sed 's/\(.\)/,\1 /g')"
 					WRITTENFORM[word]="$(echo -e ${WRITTENFORM[word]}\
 						| fgrep ','\
-						| perl -pe 's/[VN].*$//g')"
+						| perl -pe 's/[VN].*$//g'\
+						| perl -pe 's/-[a-z]+\b//g'\
+						| perl -pe 's/[A-Z]+//g'\
+						| perl -pe 's/\[.*?]//g')"
 					CLASSICAL="$(echo $LAST\
 						| perl -pe 's/[QqCc]/k/g'\
 						| perl -pe 's/[Gg]([IiEe])/k$1/g'\
 						| perl -pe 's/(\w)V/$1U/g'\
 						| perl -pe 's/gn/nn/g')"
 #					Anki_Front=$(linebreaker "$CLASSICAL,\n$LAST\n${PRONOUNCIATION[word]}\n${WRITTENFORM[word]}")
-					Anki_Front=$(linebreaker "$CLASSICAL,\n$LAST,\n${WRITTENFORM[word]}")
+					Anki_Front=$(linebreaker "$CLASSICAL vel $LAST. \n[Formae]:\n${WRITTENFORM[word]}")
 					Anki_Back=$(linebreaker "${DEFINITION[word]}<br>")
 					echo -e "AENIGMAE.LATINAE\tBasic\t1\t$Anki_Front\t$Anki_Back" >> $DICLIST
 
